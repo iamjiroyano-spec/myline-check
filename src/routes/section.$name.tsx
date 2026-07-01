@@ -9,6 +9,7 @@ import {
   loadSection,
   storageKey,
   FLAG_STATUSES,
+  OK_STATUSES,
   type Entry,
   type SectionState,
   type Slot,
@@ -659,9 +660,9 @@ function SectionPage() {
                 {items.map((item) => {
                   const e = state.entries[item.name]?.[slot];
                   const status = e?.status ?? "";
-                  const checked = !!status;
+                  const checked = !!status && OK_STATUSES.has(status);
                   const flagged = status && FLAG_STATUSES.has(status);
-                  const itemPct = checked ? 100 : 0;
+                  const itemPct = status ? 100 : 0;
 
                   const noteMissing = flagged && !e?.note?.trim();
                   return (
