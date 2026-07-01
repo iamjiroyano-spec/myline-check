@@ -186,6 +186,10 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -196,6 +200,22 @@
   h6 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
+  }
+
+  /* Readability: raise floor on tiny text used throughout the app */
+  .text-xs {
+    font-size: 0.8125rem; /* 13px */
+    line-height: 1.5;
+  }
+  .text-sm {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.55;
+  }
+  [class*="text-[10px]"],
+  [class*="text-[11px]"],
+  [class*="text-[12px]"] {
+    font-size: 0.8125rem !important; /* 13px */
+    letter-spacing: 0.01em;
   }
 }
 
