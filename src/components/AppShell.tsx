@@ -30,6 +30,8 @@ import {
   Snowflake,
   Beer,
   LogOut,
+  Moon,
+  Sun,
 } from "lucide-react";
 
 const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
