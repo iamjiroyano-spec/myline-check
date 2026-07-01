@@ -92,7 +92,7 @@
   --secondary-foreground: oklch(0.32 0.06 40);
 
   --muted: oklch(0.94 0.018 70);
-  --muted-foreground: oklch(0.5 0.03 55);
+  --muted-foreground: oklch(0.38 0.03 55);
 
   /* Sage accent */
   --accent: oklch(0.885 0.04 140);
