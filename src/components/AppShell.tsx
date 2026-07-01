@@ -30,6 +30,8 @@ import {
   Snowflake,
   Beer,
   LogOut,
+  Moon,
+  Sun,
 } from "lucide-react";
 
 const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -314,8 +316,35 @@ function TopBar({
         <Pill icon={<User className="h-3.5 w-3.5" />}>
           <TeamMemberSelect value={member} onChange={setMember} />
         </Pill>
+        <ThemeToggle />
       </div>
     </header>
+  );
+}
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+  const toggle = () => {
+    const next = !isDark;
+    setIsDark(next);
+    const root = document.documentElement;
+    if (next) root.classList.add("dark");
+    else root.classList.remove("dark");
+    try {
+      localStorage.setItem("linecheck:theme", next ? "dark" : "light");
+    } catch {}
+  };
+  return (
+    <button
+      onClick={toggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
   );
 }
 
