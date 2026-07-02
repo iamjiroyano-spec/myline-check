@@ -1,6 +1,6 @@
 import { lsStore } from "@/lib/lsStore";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useShellState } from "@/components/AppShell";
 import {
   SECTIONS,
@@ -14,7 +14,7 @@ import {
   type SectionState,
   type Slot,
 } from "@/lib/lineCheck";
-import { Check, ChevronDown, ChevronUp, Edit3, Filter, MoreHorizontal, Save, Thermometer, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Download, Edit3, Filter, MoreHorizontal, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
 import { z } from "zod";
 
 type EditItem = { name: string; quality: string; shelf: string; container: string };
@@ -352,6 +352,127 @@ function SectionPage() {
       ),
     );
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const downloadTemplate = () => {
+    const header = "Category,Temp,Item,Quality,Shelf,Container";
+    const esc = (v: string) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows: string[] = [header];
+    const source = draft.length ? draft : struct;
+    if (source.length === 0) {
+      rows.push("Items,false,Sample Item,Fresh,By Expiration,1/6 Pan");
+    } else {
+      for (const cat of source) {
+        if (cat.items.length === 0) {
+          rows.push([cat.group, cat.temp ? "true" : "false", "", "", "", ""].map(esc).join(","));
+        }
+        for (const it of cat.items) {
+          rows.push(
+            [cat.group, cat.temp ? "true" : "false", it.name, it.quality, it.shelf, it.container]
+              .map(esc)
+              .join(","),
+          );
+        }
+      }
+    }
+    const csv = rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/[^\w-]+/g, "_")}-template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsv = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let cur: string[] = [];
+    let field = "";
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ",") { cur.push(field); field = ""; }
+        else if (c === "\n" || c === "\r") {
+          if (field !== "" || cur.length) { cur.push(field); rows.push(cur); cur = []; field = ""; }
+          if (c === "\r" && text[i + 1] === "\n") i++;
+        } else field += c;
+      }
+    }
+    if (field !== "" || cur.length) { cur.push(field); rows.push(cur); }
+    return rows;
+  };
+
+  const uploadTemplate = async (file: File) => {
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text).filter((r) => r.some((c) => c.trim() !== ""));
+      if (rows.length < 2) { alert("CSV is empty."); return; }
+      const header = rows[0].map((h) => h.trim().toLowerCase());
+      const idx = (k: string) => header.indexOf(k);
+      const iCat = idx("category"), iTemp = idx("temp"), iItem = idx("item"),
+        iQual = idx("quality"), iShelf = idx("shelf"), iCont = idx("container");
+      if (iCat < 0 || iItem < 0) {
+        alert("CSV must have at least 'Category' and 'Item' columns.");
+        return;
+      }
+      const map = new Map<string, EditCategory>();
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const group = (row[iCat] ?? "").trim();
+        if (!group) continue;
+        const tempVal = iTemp >= 0 ? (row[iTemp] ?? "").trim().toLowerCase() : "";
+        const temp = tempVal === "true" || tempVal === "1" || tempVal === "yes";
+        if (!map.has(group)) map.set(group, { group, temp, items: [] });
+        const cat = map.get(group)!;
+        if (temp) cat.temp = true;
+        const itemName = (row[iItem] ?? "").trim();
+        if (!itemName) continue;
+        cat.items.push({
+          name: itemName,
+          quality: iQual >= 0 ? (row[iQual] ?? "").trim() : "",
+          shelf: iShelf >= 0 ? (row[iShelf] ?? "").trim() : "",
+          container: iCont >= 0 ? (row[iCont] ?? "").trim() : "",
+        });
+      }
+      const next = [...map.values()];
+      if (next.length === 0) { alert("No valid rows found in CSV."); return; }
+      const replace = window.confirm(
+        `Import ${next.reduce((a, c) => a + c.items.length, 0)} items into ${next.length} categor${next.length === 1 ? "y" : "ies"}?\n\nOK = Replace current categories\nCancel = Merge with existing`,
+      );
+      if (replace) {
+        setDraft(next);
+      } else {
+        setDraft((d) => {
+          const merged: EditCategory[] = d.map((c) => ({ ...c, items: [...c.items] }));
+          for (const inc of next) {
+            const existing = merged.find((c) => c.group.toLowerCase() === inc.group.toLowerCase());
+            if (existing) {
+              if (inc.temp) existing.temp = true;
+              existing.items.push(...inc.items);
+            } else merged.push(inc);
+          }
+          return merged;
+        });
+      }
+    } catch (e) {
+      alert("Failed to parse CSV: " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+
   const moveCat = (i: number, dir: -1 | 1) =>
     setDraft((d) => {
       const j = i + dir;
@@ -497,12 +618,39 @@ function SectionPage() {
             <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Edit Categories &amp; Items
             </h3>
-            <button
-              onClick={addCat}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Category
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={downloadTemplate}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+                title="Download a CSV template pre-filled with current items"
+              >
+                <Download className="h-3.5 w-3.5" /> Download Template
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+                title="Upload a CSV to bulk-add items"
+              >
+                <Upload className="h-3.5 w-3.5" /> Upload CSV
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadTemplate(f);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                onClick={addCat}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Category
+              </button>
+            </div>
           </div>
 
           <div className="space-y-5">
