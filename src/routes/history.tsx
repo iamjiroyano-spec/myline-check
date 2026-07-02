@@ -26,6 +26,7 @@ import {
   Trash2,
   Lock,
   X,
+  Edit3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/history")({
