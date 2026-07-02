@@ -6,10 +6,20 @@ import {
   allFlagged,
   sectionProgress,
   type FlaggedRow,
+  type Slot,
 } from "@/lib/lineCheck";
 import { ArrowRight, CheckCircle2, AlertTriangle, Utensils, UserCog } from "lucide-react";
+import { z } from "zod";
+
+const dashSearch = z
+  .object({
+    date: z.string().optional(),
+    shift: z.enum(["op", "mid", "cl"]).optional(),
+  })
+  .partial();
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>) => dashSearch.parse(s),
   head: () => ({
     meta: [
       { title: "Shift Overview — Line Check 2026" },
