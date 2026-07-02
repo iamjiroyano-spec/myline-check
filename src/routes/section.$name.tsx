@@ -387,7 +387,7 @@ function SectionPage() {
             before opening a station.
           </p>
           <button
-            onClick={() => router.navigate({ to: "/" })}
+            onClick={() => { window.location.href = "/"; }}
             className="mt-4 inline-flex items-center rounded-full border border-danger/40 bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent"
           >
             Back to Overview
