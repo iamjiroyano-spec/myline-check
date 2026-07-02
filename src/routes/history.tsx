@@ -26,6 +26,7 @@ import {
   Trash2,
   Lock,
   X,
+  Edit3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/history")({
@@ -350,6 +351,15 @@ function ShiftRow({
             </p>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link
+          to="/"
+          search={{ date: sh.date, shift: sh.slot }}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Reopen this shift"
+          title="Reopen this shift"
+        >
+          <Edit3 className="h-4 w-4" />
         </Link>
         <button
           onClick={onShare}

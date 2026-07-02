@@ -6,10 +6,20 @@ import {
   allFlagged,
   sectionProgress,
   type FlaggedRow,
+  type Slot,
 } from "@/lib/lineCheck";
 import { ArrowRight, CheckCircle2, AlertTriangle, Utensils, UserCog } from "lucide-react";
+import { z } from "zod";
+
+const dashSearch = z
+  .object({
+    date: z.string().optional(),
+    shift: z.enum(["op", "mid", "cl"]).optional(),
+  })
+  .partial();
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>) => dashSearch.parse(s),
   head: () => ({
     meta: [
       { title: "Shift Overview — Line Check 2026" },
@@ -32,7 +42,15 @@ const STATUS_BADGE: Record<string, string> = {
 
 function Dashboard() {
   const shell = useShellState("Shift Overview");
+  const search = Route.useSearch() as { date?: string; shift?: Slot };
   const [tick, setTick] = useState(0);
+
+  // Sync shell to search params when reopening a past shift from history.
+  useEffect(() => {
+    if (search.date && search.date !== shell.date) shell.setDate(search.date);
+    if (search.shift && search.shift !== shell.shift) shell.setShift(search.shift);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.date, search.shift]);
 
   useEffect(() => {
     const fn = () => setTick((t) => t + 1);
