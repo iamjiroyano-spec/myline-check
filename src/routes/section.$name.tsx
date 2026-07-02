@@ -618,12 +618,39 @@ function SectionPage() {
             <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Edit Categories &amp; Items
             </h3>
-            <button
-              onClick={addCat}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add Category
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={downloadTemplate}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+                title="Download a CSV template pre-filled with current items"
+              >
+                <Download className="h-3.5 w-3.5" /> Download Template
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+                title="Upload a CSV to bulk-add items"
+              >
+                <Upload className="h-3.5 w-3.5" /> Upload CSV
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadTemplate(f);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                onClick={addCat}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Category
+              </button>
+            </div>
           </div>
 
           <div className="space-y-5">
