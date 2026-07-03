@@ -854,3 +854,253 @@ function SectionPage() {
     </AppShell>
   );
 }
+
+// ---------- Drag-and-drop edit UI ----------
+
+type EditDraftDndProps = {
+  draft: EditCategory[];
+  setDraft: React.Dispatch<React.SetStateAction<EditCategory[]>>;
+  updateCat: (i: number, patch: Partial<EditCategory>) => void;
+  removeCat: (i: number) => void;
+  updateItem: (ci: number, ii: number, patch: Partial<EditItem>) => void;
+  removeItem: (ci: number, ii: number) => void;
+  addItem: (ci: number) => void;
+  SHELF_OPTIONS: string[];
+  CONTAINER_OPTIONS: string[];
+};
+
+function EditDraftDnd(props: EditDraftDndProps) {
+  const { draft, setDraft } = props;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const catIds = draft.map((_, i) => `cat-${i}`);
+
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = catIds.indexOf(String(active.id));
+    const to = catIds.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setDraft((d) => arrayMove(d, from, to));
+  };
+
+  return (
+    <div className="space-y-5">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
+        <SortableContext items={catIds} strategy={verticalListSortingStrategy}>
+          {draft.map((cat, ci) => (
+            <SortableCategory key={ci} ci={ci} cat={cat} {...props} />
+          ))}
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+function SortableCategory({
+  ci,
+  cat,
+  draft,
+  setDraft,
+  updateCat,
+  removeCat,
+  updateItem,
+  removeItem,
+  addItem,
+  SHELF_OPTIONS,
+  CONTAINER_OPTIONS,
+}: EditDraftDndProps & { ci: number; cat: EditCategory }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `cat-${ci}`,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const itemIds = cat.items.map((_, i) => `item-${ci}-${i}`);
+
+  const handleItemDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = itemIds.indexOf(String(active.id));
+    const to = itemIds.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setDraft((d) =>
+      d.map((c, idx) => (idx === ci ? { ...c, items: arrayMove(c.items, from, to) } : c)),
+    );
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="rounded-xl border border-border bg-background/40 p-3">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Reorder category"
+          className="grid h-7 w-6 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <input
+          value={cat.group}
+          onChange={(e) => updateCat(ci, { group: e.target.value })}
+          placeholder="Category name"
+          className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm font-bold tracking-tight outline-none focus:border-foreground/30"
+        />
+        <label
+          className={`grid h-7 w-7 cursor-pointer place-items-center rounded-md border ${
+            cat.temp
+              ? "border-emerald-500 bg-emerald-500 text-white"
+              : "border-input bg-background text-muted-foreground"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={cat.temp}
+            onChange={(e) => updateCat(ci, { temp: e.target.checked })}
+            className="sr-only"
+          />
+          {cat.temp && <Check className="h-4 w-4" strokeWidth={3} />}
+        </label>
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Thermometer className="h-3.5 w-3.5 text-sky-500" /> Temp
+        </span>
+        <button
+          onClick={() => removeCat(ci)}
+          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger"
+          aria-label="Delete category"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleItemDragEnd}
+        >
+          <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+            {cat.items.map((it, ii) => (
+              <SortableItem
+                key={ii}
+                ci={ci}
+                ii={ii}
+                it={it}
+                updateItem={updateItem}
+                removeItem={removeItem}
+                SHELF_OPTIONS={SHELF_OPTIONS}
+                CONTAINER_OPTIONS={CONTAINER_OPTIONS}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        <button
+          onClick={() => addItem(ci)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Item
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SortableItem({
+  ci,
+  ii,
+  it,
+  updateItem,
+  removeItem,
+  SHELF_OPTIONS,
+  CONTAINER_OPTIONS,
+}: {
+  ci: number;
+  ii: number;
+  it: EditItem;
+  updateItem: (ci: number, ii: number, patch: Partial<EditItem>) => void;
+  removeItem: (ci: number, ii: number) => void;
+  SHELF_OPTIONS: string[];
+  CONTAINER_OPTIONS: string[];
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `item-${ci}-${ii}`,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Reorder item"
+          className="grid h-7 w-6 shrink-0 cursor-grab place-items-center rounded text-muted-foreground hover:bg-accent active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <input
+          value={it.name}
+          onChange={(e) => updateItem(ci, ii, { name: e.target.value })}
+          placeholder="Item name"
+          className="flex-1 rounded-lg border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-foreground/30"
+        />
+        <button
+          onClick={() => removeItem(ci, ii)}
+          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger"
+          aria-label="Delete item"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={it.quality}
+          onChange={(e) => updateItem(ci, ii, { quality: e.target.value })}
+          placeholder="Quality / spec"
+          className="min-w-[200px] flex-1 rounded-lg border border-input bg-card px-3 py-1.5 text-xs outline-none focus:border-foreground/30"
+        />
+        <select
+          value={it.shelf}
+          onChange={(e) => updateItem(ci, ii, { shelf: e.target.value })}
+          className="rounded-lg border border-input bg-card px-3 py-1.5 text-xs outline-none"
+        >
+          {[it.shelf, ...SHELF_OPTIONS.filter((o) => o !== it.shelf)]
+            .filter(Boolean)
+            .map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+        </select>
+        <select
+          value={it.container}
+          onChange={(e) => updateItem(ci, ii, { container: e.target.value })}
+          className="rounded-lg border border-input bg-card px-3 py-1.5 text-xs outline-none"
+        >
+          {[it.container, ...CONTAINER_OPTIONS.filter((o) => o !== it.container)]
+            .filter(Boolean)
+            .map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+        </select>
+        <div className="w-7" />
+      </div>
+    </div>
+  );
+}
