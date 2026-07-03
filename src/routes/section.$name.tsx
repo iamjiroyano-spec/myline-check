@@ -670,132 +670,20 @@ function SectionPage() {
             </div>
           </div>
 
-          <div className="space-y-5">
-            {draft.map((cat, ci) => (
-              <div key={ci} className="rounded-xl border border-border bg-background/40 p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col">
-                    <button
-                      onClick={() => moveCat(ci, -1)}
-                      disabled={ci === 0}
-                      className="grid h-4 w-6 place-items-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"
-                      aria-label="Move category up"
-                    >
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => moveCat(ci, 1)}
-                      disabled={ci === draft.length - 1}
-                      className="grid h-4 w-6 place-items-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"
-                      aria-label="Move category down"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <input
-                    value={cat.group}
-                    onChange={(e) => updateCat(ci, { group: e.target.value })}
-                    placeholder="Category name"
-                    className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm font-bold tracking-tight outline-none focus:border-foreground/30"
-                  />
-                  <label className={`grid h-7 w-7 cursor-pointer place-items-center rounded-md border ${cat.temp ? "border-emerald-500 bg-emerald-500 text-white" : "border-input bg-background text-muted-foreground"}`}>
-                    <input
-                      type="checkbox"
-                      checked={cat.temp}
-                      onChange={(e) => updateCat(ci, { temp: e.target.checked })}
-                      className="sr-only"
-                    />
-                    {cat.temp && <Check className="h-4 w-4" strokeWidth={3} />}
-                  </label>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <Thermometer className="h-3.5 w-3.5 text-sky-500" /> Temp
-                  </span>
-                  <button
-                    onClick={() => removeCat(ci)}
-                    className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger"
-                    aria-label="Delete category"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  {cat.items.map((it, ii) => (
-                    <div key={ii} className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <button
-                            onClick={() => moveItem(ci, ii, -1)}
-                            disabled={ii === 0}
-                            className="grid h-4 w-6 place-items-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"
-                            aria-label="Move item up"
-                          >
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => moveItem(ci, ii, 1)}
-                            disabled={ii === cat.items.length - 1}
-                            className="grid h-4 w-6 place-items-center rounded text-muted-foreground hover:bg-accent disabled:opacity-30"
-                            aria-label="Move item down"
-                          >
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <input
-                          value={it.name}
-                          onChange={(e) => updateItem(ci, ii, { name: e.target.value })}
-                          placeholder="Item name"
-                          className="flex-1 rounded-lg border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-foreground/30"
-                        />
-                        <button
-                          onClick={() => removeItem(ci, ii)}
-                          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger"
-                          aria-label="Delete item"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          value={it.quality}
-                          onChange={(e) => updateItem(ci, ii, { quality: e.target.value })}
-                          placeholder="Quality / spec"
-                          className="min-w-[200px] flex-1 rounded-lg border border-input bg-card px-3 py-1.5 text-xs outline-none focus:border-foreground/30"
-                        />
-                        <select
-                          value={it.shelf}
-                          onChange={(e) => updateItem(ci, ii, { shelf: e.target.value })}
-                          className="rounded-lg border border-input bg-card px-3 py-1.5 text-xs outline-none"
-                        >
-                          {[it.shelf, ...SHELF_OPTIONS.filter((o) => o !== it.shelf)].filter(Boolean).map((o) => (
-                            <option key={o} value={o}>{o}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={it.container}
-                          onChange={(e) => updateItem(ci, ii, { container: e.target.value })}
-                          className="rounded-lg border border-input bg-card px-3 py-1.5 text-xs outline-none"
-                        >
-                          {[it.container, ...CONTAINER_OPTIONS.filter((o) => o !== it.container)].filter(Boolean).map((o) => (
-                            <option key={o} value={o}>{o}</option>
-                          ))}
-                        </select>
-                        <div className="w-7" />
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => addItem(ci)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Add Item
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <EditDraftDnd
+            draft={draft}
+            setDraft={setDraft}
+            updateCat={updateCat}
+            removeCat={removeCat}
+            updateItem={updateItem}
+            removeItem={removeItem}
+            addItem={addItem}
+            SHELF_OPTIONS={SHELF_OPTIONS}
+            CONTAINER_OPTIONS={CONTAINER_OPTIONS}
+          />
         </section>
       )}
+
 
       {/* Groups (view mode) */}
       {!editMode &&
