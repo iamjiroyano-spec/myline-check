@@ -37,6 +37,12 @@ function safe(): Storage | null {
   }
 }
 
+function emitWrite() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("linecheck:local-write"));
+  }
+}
+
 export const lsStore = {
   getItem(key: string) {
     const s = safe();
@@ -45,10 +51,12 @@ export const lsStore = {
   setItem(key: string, value: string) {
     const s = safe();
     if (s) s.setItem(scopedKey(key), value);
+    emitWrite();
   },
   removeItem(key: string) {
     const s = safe();
     if (s) s.removeItem(scopedKey(key));
+    emitWrite();
   },
   /** List raw (un-prefixed) keys belonging to the current user. */
   keys(): string[] {
