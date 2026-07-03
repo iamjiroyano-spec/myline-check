@@ -18,18 +18,22 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (!active) return;
       if (data.session?.user) {
         setUserScope(data.session.user.id);
+        void startSync(data.session.user.id);
         setStatus("signed-in");
       } else {
         setUserScope(null);
+        stopSync();
         setStatus("signed-out");
       }
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       if (session?.user) {
         setUserScope(session.user.id);
+        void startSync(session.user.id);
         setStatus("signed-in");
       } else {
         setUserScope(null);
+        stopSync();
         setStatus("signed-out");
       }
     });
