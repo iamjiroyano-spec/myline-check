@@ -14,8 +14,25 @@ import {
   type SectionState,
   type Slot,
 } from "@/lib/lineCheck";
-import { Check, ChevronDown, ChevronUp, Download, Edit3, Filter, MoreHorizontal, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Download, Edit3, Filter, GripVertical, MoreHorizontal, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
 import { z } from "zod";
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type EditItem = { name: string; quality: string; shelf: string; container: string };
 type EditCategory = { group: string; temp: boolean; items: EditItem[] };
