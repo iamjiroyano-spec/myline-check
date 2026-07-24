@@ -5,6 +5,7 @@ import {
   SECTIONS,
   STAFF,
   defaultShift,
+  getEffectiveSections,
   sectionProgress,
   todayISO,
   type Slot,
