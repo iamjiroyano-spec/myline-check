@@ -318,13 +318,14 @@ function TopBar({
             className="bg-transparent text-xs font-semibold outline-none"
             aria-label="Shift"
           >
-            {SHIFT_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
+            {(["op", "mid", "cl"] as Slot[]).map((v) => (
+              <option key={v} value={v}>
+                {shiftLabels[v]}
               </option>
             ))}
           </select>
         </Pill>
+
         <Pill icon={<User className="h-3.5 w-3.5" />}>
           <TeamMemberSelect value={member} onChange={setMember} />
         </Pill>
