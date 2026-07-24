@@ -457,15 +457,13 @@ function ShiftRow({
 }
 
 function StationRow({
-  shiftKey,
   station,
   date,
   slot,
   expanded,
   onToggle,
 }: {
-  shiftKey: string;
-  station: import("@/lib/lineCheck").ShiftHistoryStation;
+  station: ShiftHistoryStation;
   date: string;
   slot: Slot;
   expanded: boolean;
