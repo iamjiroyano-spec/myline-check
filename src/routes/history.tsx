@@ -7,6 +7,7 @@ import {
   shiftHistory,
   clearAllHistory,
   SLOT_LABEL,
+  getShifts,
   type ShiftHistory,
   type Slot,
 } from "@/lib/lineCheck";
@@ -42,8 +43,7 @@ export const Route = createFileRoute("/history")({
   component: HistoryPage,
 });
 
-const SLOT_ORDER: Slot[] = ["op", "mid", "cl"];
-const SLOT_ICON: Record<Slot, React.ComponentType<{ className?: string }>> = {
+const SLOT_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   op: Sunrise,
   mid: Sun,
   cl: Moon,
@@ -77,7 +77,7 @@ function HistoryPage() {
     const totals = { checks: 0, complete: 0, flagged: 0 };
     for (const d of dates) {
       const shifts: ShiftHistory[] = [];
-      for (const slot of SLOT_ORDER) {
+      for (const { id: slot } of getShifts()) {
         if (shiftFilter !== "ALL" && slot !== shiftFilter) continue;
         const sh = shiftHistory(d, slot);
         if (sh.stationsTouched === 0) continue;
@@ -164,9 +164,7 @@ function HistoryPage() {
             onChange={setShiftFilter}
             options={[
               { value: "ALL", label: "All Shifts" },
-              { value: "op", label: "Opening" },
-              { value: "mid", label: "Mid" },
-              { value: "cl", label: "Closing" },
+              ...getShifts().map((s) => ({ value: s.id, label: s.label })),
             ]}
           />
         </div>

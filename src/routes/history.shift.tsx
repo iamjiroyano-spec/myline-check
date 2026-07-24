@@ -11,6 +11,7 @@ import {
   getEffectiveSections,
   effectiveCategorizedItems,
   readEntry,
+  getShifts,
   type Slot,
 } from "@/lib/lineCheck";
 import {
@@ -25,11 +26,9 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 
-const SLOTS: Slot[] = ["op", "mid", "cl"];
-
 const searchSchema = z.object({
   date: z.string(),
-  shift: z.enum(["op", "mid", "cl"]),
+  shift: z.string(),
 });
 
 export const Route = createFileRoute("/history/shift")({
@@ -141,18 +140,18 @@ function ShiftDetail() {
         </button>
         <h2 className="text-base font-bold tracking-tight">Shift Detail</h2>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {SLOTS.map((s) => (
+          {getShifts().map((sh) => (
             <Link
-              key={s}
+              key={sh.id}
               to="/history/shift"
-              search={{ date, shift: s }}
+              search={{ date, shift: sh.id }}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                s === shift
+                sh.id === shift
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-card hover:bg-accent"
               }`}
             >
-              {SLOT_LABEL[s]}
+              {sh.label}
             </Link>
           ))}
           <button

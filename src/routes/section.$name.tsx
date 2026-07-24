@@ -12,6 +12,7 @@ import {
   OK_STATUSES,
   entryKey,
   readEntry,
+  getShiftLabel,
   type Entry,
   type SectionState,
   type Slot,
@@ -88,7 +89,7 @@ export const Route = createFileRoute("/section/$name")({
     z
       .object({
         date: z.string().optional(),
-        shift: z.enum(["op", "mid", "cl"]).optional(),
+        shift: z.string().optional(),
       })
       .parse(s),
   head: ({ params }) => ({
@@ -543,7 +544,7 @@ function SectionPage() {
       }),
     );
 
-  const shiftLabel = slot === "op" ? "Opening" : slot === "mid" ? "Mid" : "Closing";
+  const shiftLabel = getShiftLabel(slot);
   const ringStyle = {
     background: `conic-gradient(var(--ring-color, hsl(258 90% 66%)) ${pct * 3.6}deg, hsl(var(--muted)) 0deg)`,
   } as React.CSSProperties;

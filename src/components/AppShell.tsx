@@ -5,7 +5,7 @@ import {
   STAFF,
   defaultShift,
   getEffectiveSections,
-  getShiftLabels,
+  getShifts,
   sectionProgress,
   todayISO,
   type Slot,
@@ -51,10 +51,10 @@ const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   "PREP FREEZER": Snowflake,
 };
 
-function useShiftLabels() {
-  const [labels, setLabels] = useState<Record<Slot, string>>(() => getShiftLabels());
+function useShifts() {
+  const [shifts, setShifts] = useState(() => getShifts());
   useEffect(() => {
-    const refresh = () => setLabels(getShiftLabels());
+    const refresh = () => setShifts(getShifts());
     window.addEventListener("linecheck:shifts-update", refresh);
     window.addEventListener("linecheck:update", refresh);
     window.addEventListener("storage", refresh);
@@ -64,8 +64,10 @@ function useShiftLabels() {
       window.removeEventListener("storage", refresh);
     };
   }, []);
-  return labels;
+  return shifts;
 }
+
+
 
 
 type Ctx = {
@@ -286,7 +288,7 @@ function TopBar({
   member,
   setMember,
 }: Ctx) {
-  const shiftLabels = useShiftLabels();
+  const shifts = useShifts();
 
   const dayName = new Date(date + "T00:00:00").toLocaleDateString(undefined, {
     weekday: "long",
@@ -320,9 +322,9 @@ function TopBar({
             className="bg-transparent text-xs font-semibold outline-none"
             aria-label="Shift"
           >
-            {(["op", "mid", "cl"] as Slot[]).map((v) => (
-              <option key={v} value={v}>
-                {shiftLabels[v]}
+            {shifts.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
               </option>
             ))}
           </select>
