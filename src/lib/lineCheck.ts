@@ -96,18 +96,17 @@ export function entryKey(group: string, itemName: string) {
   return `${group}::${itemName}`;
 }
 
-/** Reads an entry using the compound key, falling back to the legacy
- *  bare-name key for previously-saved data. */
+/** Reads an entry using the compound category+name key. The legacy
+ *  bare-name fallback was removed because it caused status mirroring
+ *  across categories (and, for shared item names, across stations) whenever
+ *  older data was still present in storage. */
 export function readEntry(
   state: SectionState,
   group: string,
   itemName: string,
   slot: Slot,
 ): Entry | undefined {
-  return (
-    state.entries[entryKey(group, itemName)]?.[slot] ??
-    state.entries[itemName]?.[slot]
-  );
+  return state.entries[entryKey(group, itemName)]?.[slot];
 }
 
 export const FLAG_STATUSES = new Set([
