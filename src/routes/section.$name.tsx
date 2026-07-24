@@ -892,7 +892,7 @@ function SectionPage() {
               Station Comment / Feedback
             </h3>
             <span className="text-[10px] text-muted-foreground">
-              Auto-saved · {SLOT_LABEL_SHORT[slot] ?? slot}
+              Auto-saved · {slot.toUpperCase()}
             </span>
           </div>
           <AutoGrowTextarea
