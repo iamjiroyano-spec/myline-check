@@ -9,7 +9,7 @@ import {
 } from "@/lib/lineCheck";
 import { lsStore } from "@/lib/lsStore";
 
-const slotSchema = z.enum(["op", "mid", "cl"]);
+const slotSchema = z.string();
 
 const entrySchema = z.object({
   status: z.string().catch(""),
@@ -21,7 +21,7 @@ const sectionStateSchema = z.object({
   opening: z.string().catch(""),
   mid: z.string().catch(""),
   closing: z.string().catch(""),
-  entries: z.record(z.string(), z.record(slotSchema, entrySchema)).catch({}),
+  entries: z.record(z.string(), z.record(z.string(), entrySchema)).catch({}),
 });
 
 const summarySchema = z.object({

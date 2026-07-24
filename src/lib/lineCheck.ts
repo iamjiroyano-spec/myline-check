@@ -2,7 +2,7 @@ import data from "@/data/lineCheck.json";
 import { lsStore, getUserScope } from "@/lib/lsStore";
 
 
-export type Slot = "op" | "mid" | "cl";
+export type Slot = string;
 export type Entry = { status: string; note: string };
 export type SectionState = {
   date: string;
@@ -190,44 +190,92 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   };
 }
 
-const DEFAULT_SLOT_LABELS: Record<Slot, string> = {
+export type ShiftDef = { id: string; label: string };
+
+const DEFAULT_SHIFTS: ShiftDef[] = [
+  { id: "op", label: "Opening" },
+  { id: "mid", label: "Mid" },
+  { id: "cl", label: "Closing" },
+];
+const DEFAULT_SLOT_LABELS: Record<string, string> = {
   op: "Opening",
   mid: "Mid",
   cl: "Closing",
 };
 
 export const SHIFT_LABELS_KEY = "linecheck:settings:shiftLabels";
+export const SHIFTS_KEY = "linecheck:settings:shifts";
 
-export function getShiftLabels(): Record<Slot, string> {
+/** Returns the effective, ordered list of shifts. Reads the shift list first,
+ *  falling back to the legacy label map, then defaults. */
+export function getShifts(): ShiftDef[] {
+  try {
+    const raw = lsStore.getItem(SHIFTS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw) as Array<{ id?: string; label?: string }>;
+      if (Array.isArray(arr) && arr.length > 0) {
+        const seen = new Set<string>();
+        const out: ShiftDef[] = [];
+        for (const s of arr) {
+          const id = typeof s.id === "string" ? s.id.trim() : "";
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          const label =
+            typeof s.label === "string" && s.label.trim()
+              ? s.label.trim()
+              : DEFAULT_SLOT_LABELS[id] || id;
+          out.push({ id, label });
+        }
+        if (out.length) return out;
+      }
+    }
+  } catch {}
+  // Legacy: derive from the label-only override.
   try {
     const raw = lsStore.getItem(SHIFT_LABELS_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as Partial<Record<Slot, string>>;
-      return {
-        op: (typeof p.op === "string" && p.op.trim()) || DEFAULT_SLOT_LABELS.op,
-        mid: (typeof p.mid === "string" && p.mid.trim()) || DEFAULT_SLOT_LABELS.mid,
-        cl: (typeof p.cl === "string" && p.cl.trim()) || DEFAULT_SLOT_LABELS.cl,
-      };
+      const p = JSON.parse(raw) as Partial<Record<string, string>>;
+      return DEFAULT_SHIFTS.map((s) => ({
+        id: s.id,
+        label: (typeof p[s.id] === "string" && p[s.id]!.trim()) || s.label,
+      }));
     }
   } catch {}
-  return { ...DEFAULT_SLOT_LABELS };
+  return [...DEFAULT_SHIFTS];
+}
+
+export function saveShifts(shifts: ShiftDef[]) {
+  try {
+    lsStore.setItem(SHIFTS_KEY, JSON.stringify(shifts));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("linecheck:shifts-update"));
+      window.dispatchEvent(new Event("linecheck:update"));
+    }
+  } catch {}
+}
+
+export function getShiftLabels(): Record<string, string> {
+  const out: Record<string, string> = { ...DEFAULT_SLOT_LABELS };
+  for (const s of getShifts()) out[s.id] = s.label;
+  return out;
 }
 
 export function getShiftLabel(slot: Slot): string {
-  return getShiftLabels()[slot];
+  return getShiftLabels()[slot] ?? slot;
 }
 
-export const SLOT_LABEL = new Proxy({} as Record<Slot, string>, {
+export const SLOT_LABEL = new Proxy({} as Record<string, string>, {
   get(_t, prop: string) {
-    return getShiftLabels()[prop as Slot];
+    return getShiftLabels()[prop] ?? prop;
   },
   ownKeys() {
-    return ["op", "mid", "cl"];
+    return getShifts().map((s) => s.id);
   },
   getOwnPropertyDescriptor() {
     return { enumerable: true, configurable: true };
   },
 });
+
 
 
 export function loadSection(name: string, date = todayISO()): SectionState {
@@ -239,11 +287,14 @@ export function loadSection(name: string, date = todayISO()): SectionState {
 }
 
 export function defaultShift(): Slot {
+  const shifts = getShifts();
+  const ids = new Set(shifts.map((s) => s.id));
   const h = new Date().getHours();
-  if (h < 11) return "op";
-  if (h < 17) return "mid";
-  return "cl";
+  const pick = h < 11 ? "op" : h < 17 ? "mid" : "cl";
+  if (ids.has(pick)) return pick;
+  return shifts[0]?.id ?? "op";
 }
+
 
 export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
   const state = loadSection(name, date);
@@ -343,7 +394,7 @@ export function dayHistory(date: string): DayHistory {
       for (const item of cat.items) {
         totalItems++;
         secTotal++;
-        const slots: Slot[] = ["op", "mid", "cl"];
+        const slots: Slot[] = getShifts().map((s) => s.id);
         let itemDoneAnyShift = false;
         for (const slot of slots) {
           const e = readEntry(state, cat.group, item.name, slot);
