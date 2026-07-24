@@ -445,7 +445,7 @@ function ThemeToggle() {
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Theme
+            Dark Themes
           </p>
           <ul className="pb-1">
             {THEME_PRESETS.map((p) => (
