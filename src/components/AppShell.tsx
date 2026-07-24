@@ -385,6 +385,8 @@ function ThemeToggle() {
     if (next) root.classList.add("dark");
     else root.classList.remove("dark");
     try {
+      const { lsStore } = await import("@/lib/lsStore");
+      lsStore.setItem("linecheck:theme", next ? "dark" : "light");
       localStorage.setItem("linecheck:theme", next ? "dark" : "light");
     } catch {}
   };
