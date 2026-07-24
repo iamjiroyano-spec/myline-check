@@ -731,35 +731,85 @@ function StatusPanel() {
 
 /* ============= SHIFTS ============= */
 
-const SHIFT_SLOTS: Slot[] = ["op", "mid", "cl"];
-const SHIFT_DEFAULTS: Record<Slot, string> = { op: "Opening", mid: "Mid", cl: "Closing" };
+const DEFAULT_IDS = new Set(["op", "mid", "cl"]);
+
+function slugId(label: string) {
+  const base =
+    label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 24) || "shift";
+  return base;
+}
 
 function ShiftsPanel() {
-  const [labels, setLabels] = useState<Record<Slot, string>>(() => getShiftLabels());
+  const [shifts, setShifts] = useState<ShiftDef[]>(() => getShifts());
+  const [newLabel, setNewLabel] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const update = (slot: Slot, value: string) => {
-    const next = { ...labels, [slot]: value };
-    setLabels(next);
-    try {
-      lsStore.setItem(SHIFT_LABELS_KEY, JSON.stringify(next));
-      window.dispatchEvent(new Event("linecheck:shifts-update"));
-      window.dispatchEvent(new Event("linecheck:update"));
-    } catch {}
+  const persist = (next: ShiftDef[]) => {
+    setShifts(next);
+    saveShifts(next);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 900);
   };
 
-  const resetOne = (slot: Slot) => update(slot, SHIFT_DEFAULTS[slot]);
+  const rename = (id: string, label: string) => {
+    setError(null);
+    const next = shifts.map((s) => (s.id === id ? { ...s, label } : s));
+    persist(next);
+  };
+
+  const remove = (id: string) => {
+    if (shifts.length <= 1) {
+      setError("You need at least one shift.");
+      return;
+    }
+    setError(null);
+    persist(shifts.filter((s) => s.id !== id));
+  };
+
+  const move = (id: string, dir: -1 | 1) => {
+    const i = shifts.findIndex((s) => s.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= shifts.length) return;
+    const next = [...shifts];
+    [next[i], next[j]] = [next[j], next[i]];
+    persist(next);
+  };
+
+  const add = () => {
+    const label = newLabel.trim();
+    if (!label) {
+      setError("Enter a shift name.");
+      return;
+    }
+    if (shifts.some((s) => s.label.toLowerCase() === label.toLowerCase())) {
+      setError("A shift with this name already exists.");
+      return;
+    }
+    let id = slugId(label);
+    const used = new Set(shifts.map((s) => s.id));
+    if (used.has(id)) {
+      let n = 2;
+      while (used.has(`${id}-${n}`)) n++;
+      id = `${id}-${n}`;
+    }
+    setError(null);
+    setNewLabel("");
+    persist([...shifts, { id, label }]);
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold tracking-tight">Shift names</h3>
+          <h3 className="text-base font-bold tracking-tight">Shifts</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Rename the three shifts to match your operation (e.g. AM / PM / Night).
-            The underlying schedule is unchanged.
+            Rename, reorder, add or remove shifts. Existing history for a removed
+            shift stays intact and reappears if you re-add it with the same name.
           </p>
         </div>
         {saved && (
@@ -769,30 +819,81 @@ function ShiftsPanel() {
         )}
       </div>
 
-      <ul className="space-y-3">
-        {SHIFT_SLOTS.map((slot) => (
-          <li key={slot} className="flex items-center gap-3">
-            <span className="w-24 shrink-0 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              {SHIFT_DEFAULTS[slot]}
-            </span>
+      <ul className="space-y-2">
+        {shifts.map((s, i) => (
+          <li
+            key={s.id}
+            className="flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2"
+          >
+            <div className="flex flex-col">
+              <button
+                onClick={() => move(s.id, -1)}
+                disabled={i === 0}
+                className="grid h-4 w-5 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-30"
+                aria-label="Move up"
+              >
+                <ChevronDown className="h-3 w-3 -rotate-180" />
+              </button>
+              <button
+                onClick={() => move(s.id, 1)}
+                disabled={i === shifts.length - 1}
+                className="grid h-4 w-5 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-30"
+                aria-label="Move down"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </div>
             <input
-              value={labels[slot]}
-              onChange={(e) => update(slot, e.target.value)}
-              placeholder={SHIFT_DEFAULTS[slot]}
+              value={s.label}
+              onChange={(e) => rename(s.id, e.target.value)}
+              placeholder="Shift name"
               className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
             />
+            <span className="hidden font-mono text-[10px] uppercase tracking-wider text-muted-foreground sm:inline">
+              {s.id}
+              {DEFAULT_IDS.has(s.id) ? " · default" : ""}
+            </span>
             <button
-              onClick={() => resetOne(slot)}
-              className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              onClick={() => remove(s.id)}
+              className="grid h-8 w-8 place-items-center rounded-full border border-border bg-background text-muted-foreground hover:text-danger hover:bg-danger-soft"
+              aria-label={`Delete ${s.label}`}
+              title="Delete shift"
             >
-              Reset
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </li>
         ))}
       </ul>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <input
+          value={newLabel}
+          onChange={(e) => {
+            setNewLabel(e.target.value);
+            if (error) setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") add();
+          }}
+          placeholder="New shift name (e.g. Late Night)"
+          className="flex-1 min-w-[200px] rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+        />
+        <button
+          onClick={add}
+          className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background hover:opacity-90"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Shift
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-xs font-semibold text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
+
 
 /* ============= SIMPLE LIST (SHELVES / CONTAINERS) ============= */
 
