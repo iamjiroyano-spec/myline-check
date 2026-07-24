@@ -33,6 +33,8 @@ import {
   LogOut,
   Moon,
   Sun,
+  Palette,
+  Check,
 } from "lucide-react";
 
 const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
