@@ -165,8 +165,6 @@ export function defaultShift(): Slot {
 }
 
 export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
-  const sec = SECTIONS.find((s) => s.name === name);
-  if (!sec) return { done: 0, total: 0, flagged: 0 };
   const state = loadSection(name, date);
   const items = effectiveItems(name);
   let done = 0;
