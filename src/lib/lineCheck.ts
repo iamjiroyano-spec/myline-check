@@ -16,6 +16,23 @@ export const STATUSES = data.statuses;
 export const STAFF = data.staff;
 export const SECTIONS = data.sections.filter((s) => s.items.length > 0);
 
+/** Returns the effective items for a section, honoring user category edits
+ *  stored under `linecheck:section-items:<name>`. Falls back to the shipped
+ *  JSON structure when no override exists. */
+export function effectiveItems(sectionName: string): { name: string }[] {
+  try {
+    const raw = lsStore.getItem(`linecheck:section-items:${sectionName}`);
+    if (raw) {
+      const cats = JSON.parse(raw) as { items: { name: string }[] }[];
+      if (Array.isArray(cats)) {
+        return cats.flatMap((c) => (Array.isArray(c.items) ? c.items : []));
+      }
+    }
+  } catch {}
+  const sec = data.sections.find((s) => s.name === sectionName);
+  return sec ? sec.items : [];
+}
+
 export const FLAG_STATUSES = new Set([
   "ABOUT TO EXPIRE",
   "EXPIRED",
@@ -74,9 +91,10 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let checkedItems = 0;
   for (const sec of SECTIONS) {
     const state = loadSection(sec.name, date);
+    const items = effectiveItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of sec.items) {
+    for (const item of items) {
       totalItems++;
       const e = state.entries[item.name]?.[slot];
       if (e?.status) {
@@ -88,7 +106,7 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
       }
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && sec.items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && items.length > 0) stationsComplete++;
   }
   return {
     date,
@@ -127,14 +145,15 @@ export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
   const sec = SECTIONS.find((s) => s.name === name);
   if (!sec) return { done: 0, total: 0, flagged: 0 };
   const state = loadSection(name, date);
+  const items = effectiveItems(name);
   let done = 0;
   let flagged = 0;
-  for (const item of sec.items) {
+  for (const item of items) {
     const e = state.entries[item.name]?.[slot];
     if (e?.status) done++;
     if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
   }
-  return { done, total: sec.items.length, flagged };
+  return { done, total: items.length, flagged };
 }
 
 export type FlaggedRow = {
@@ -148,7 +167,7 @@ export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   const rows: FlaggedRow[] = [];
   for (const sec of SECTIONS) {
     const state = loadSection(sec.name, date);
-    for (const item of sec.items) {
+    for (const item of effectiveItems(sec.name)) {
       const e = state.entries[item.name]?.[slot];
       if (e?.status && FLAG_STATUSES.has(e.status)) {
         rows.push({ section: sec.name, item: item.name, status: e.status, slot });
@@ -208,9 +227,10 @@ export function dayHistory(date: string): DayHistory {
   let checkedItems = 0;
   for (const sec of SECTIONS) {
     const state = loadSection(sec.name, date);
+    const items = effectiveItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of sec.items) {
+    for (const item of items) {
       totalItems++;
       const slots: Slot[] = ["op", "mid", "cl"];
       let itemDoneAnyShift = false;
@@ -226,7 +246,7 @@ export function dayHistory(date: string): DayHistory {
       else allDone = false;
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && sec.items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && items.length > 0) stationsComplete++;
   }
   return { date, stationsTouched, stationsComplete, flagged, totalItems, checkedItems };
 }
