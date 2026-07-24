@@ -400,6 +400,8 @@ function ThemeToggle() {
       saveCustomTheme(loadCustomTheme());
     }
     try {
+      const { lsStore } = await import("@/lib/lsStore");
+      lsStore.setItem("linecheck:theme-preset", id);
       localStorage.setItem("linecheck:theme-preset", id);
     } catch {}
   };
