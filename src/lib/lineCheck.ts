@@ -138,6 +138,24 @@ export function saveMember(date: string, slot: Slot, name: string) {
   } catch {}
 }
 
+export type ShiftHistoryItem = {
+  group: string;
+  name: string;
+  status: string;
+  note: string;
+  photo?: string;
+  flagged: boolean;
+};
+
+export type ShiftHistoryStation = {
+  name: string;
+  totalItems: number;
+  checkedItems: number;
+  complete: boolean;
+  flagged: number;
+  items: ShiftHistoryItem[];
+};
+
 export type ShiftHistory = {
   date: string;
   slot: Slot;
@@ -147,6 +165,7 @@ export type ShiftHistory = {
   flagged: number;
   totalItems: number;
   checkedItems: number;
+  stations: ShiftHistoryStation[];
 };
 
 export function shiftHistory(date: string, slot: Slot): ShiftHistory {
@@ -155,12 +174,16 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let flagged = 0;
   let totalItems = 0;
   let checkedItems = 0;
+  const stations: ShiftHistoryStation[] = [];
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     const cats = effectiveCategorizedItems(sec.name);
     let anyTouched = false;
     let allDone = true;
     let secTotal = 0;
+    let secChecked = 0;
+    let secFlagged = 0;
+    const stationItems: ShiftHistoryItem[] = [];
     for (const cat of cats) {
       for (const item of cat.items) {
         totalItems++;
@@ -169,13 +192,35 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
         if (e?.status) {
           anyTouched = true;
           checkedItems++;
-          if (FLAG_STATUSES.has(e.status)) flagged++;
+          secChecked++;
+          if (FLAG_STATUSES.has(e.status)) {
+            flagged++;
+            secFlagged++;
+          }
+          stationItems.push({
+            group: cat.group,
+            name: item.name,
+            status: e.status,
+            note: e.note || "",
+            photo: e.photo,
+            flagged: FLAG_STATUSES.has(e.status),
+          });
         } else {
           allDone = false;
         }
       }
     }
-    if (anyTouched) stationsTouched++;
+    if (anyTouched) {
+      stationsTouched++;
+      stations.push({
+        name: sec.name,
+        totalItems: secTotal,
+        checkedItems: secChecked,
+        complete: allDone && secTotal > 0,
+        flagged: secFlagged,
+        items: stationItems,
+      });
+    }
     if (anyTouched && allDone && secTotal > 0) stationsComplete++;
   }
   return {
@@ -187,6 +232,7 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
     flagged,
     totalItems,
     checkedItems,
+    stations,
   };
 }
 

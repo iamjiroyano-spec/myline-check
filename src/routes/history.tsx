@@ -9,6 +9,7 @@ import {
   SLOT_LABEL,
   getShifts,
   type ShiftHistory,
+  type ShiftHistoryStation,
   type Slot,
 } from "@/lib/lineCheck";
 
@@ -16,6 +17,7 @@ import {
   ArrowLeft,
   Calendar,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   AlertTriangle,
   Filter,
@@ -57,7 +59,8 @@ function HistoryPage() {
   const [tick, setTick] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [showClear, setShowClear] = useState(false);
-
+  const [expandedShifts, setExpandedShifts] = useState<Record<string, boolean>>({});
+  const [expandedStations, setExpandedStations] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fn = () => setTick((t) => t + 1);
@@ -80,11 +83,22 @@ function HistoryPage() {
       for (const { id: slot } of getShifts()) {
         if (shiftFilter !== "ALL" && slot !== shiftFilter) continue;
         const sh = shiftHistory(d, slot);
-        if (sh.stationsTouched === 0) continue;
-        shifts.push(sh);
-        totals.checks += sh.stationsTouched;
-        totals.complete += sh.stationsComplete;
-        totals.flagged += sh.flagged;
+        const filteredStations =
+          station === "ALL" ? sh.stations : sh.stations.filter((s) => s.name === station);
+        if (filteredStations.length === 0) continue;
+        const filteredSh: ShiftHistory = {
+          ...sh,
+          stations: filteredStations,
+          stationsTouched: filteredStations.length,
+          stationsComplete: filteredStations.filter((s) => s.complete).length,
+          totalItems: filteredStations.reduce((sum, s) => sum + s.totalItems, 0),
+          checkedItems: filteredStations.reduce((sum, s) => sum + s.checkedItems, 0),
+          flagged: filteredStations.reduce((sum, s) => sum + s.flagged, 0),
+        };
+        shifts.push(filteredSh);
+        totals.checks += filteredSh.stationsTouched;
+        totals.complete += filteredSh.stationsComplete;
+        totals.flagged += filteredSh.flagged;
       }
       if (shifts.length > 0) grouped.push({ date: d, shifts });
     }
@@ -187,6 +201,10 @@ function HistoryPage() {
               shifts={shifts}
               onShare={share}
               copied={copied}
+              expandedShifts={expandedShifts}
+              setExpandedShifts={setExpandedShifts}
+              expandedStations={expandedStations}
+              setExpandedStations={setExpandedStations}
             />
           ))}
         </div>
@@ -243,11 +261,19 @@ function DayBlock({
   shifts,
   onShare,
   copied,
+  expandedShifts,
+  setExpandedShifts,
+  expandedStations,
+  setExpandedStations,
 }: {
   date: string;
   shifts: ShiftHistory[];
   onShare: (date: string, slot: Slot) => void;
   copied: string | null;
+  expandedShifts: Record<string, boolean>;
+  setExpandedShifts: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  expandedStations: Record<string, boolean>;
+  setExpandedStations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
   const d = new Date(date + "T00:00:00");
   const weekday = d.toLocaleDateString(undefined, { weekday: "long" });
@@ -277,6 +303,15 @@ function DayBlock({
             sh={sh}
             onShare={() => onShare(date, sh.slot)}
             copied={copied === `${date}:${sh.slot}`}
+            expanded={!!expandedShifts[`${date}:${sh.slot}`]}
+            onToggle={() =>
+              setExpandedShifts((prev) => ({
+                ...prev,
+                [`${date}:${sh.slot}`]: !prev[`${date}:${sh.slot}`],
+              }))
+            }
+            expandedStations={expandedStations}
+            setExpandedStations={setExpandedStations}
           />
         ))}
       </ul>
@@ -288,91 +323,266 @@ function ShiftRow({
   sh,
   onShare,
   copied,
+  expanded,
+  onToggle,
+  expandedStations,
+  setExpandedStations,
 }: {
   sh: ShiftHistory;
   onShare: () => void;
   copied: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  expandedStations: Record<string, boolean>;
+  setExpandedStations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
   const pct = sh.totalItems ? Math.round((sh.checkedItems / sh.totalItems) * 100) : 0;
   const Icon = SLOT_ICON[sh.slot];
 
   return (
     <li className="relative">
-      <span className="absolute -left-[22px] top-1/2 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-full border-2 border-background bg-foreground/70" />
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
-        <Link
-          to="/history/shift"
-          search={{ date: sh.date, shift: sh.slot }}
-          className="flex min-w-0 flex-1 items-center gap-3"
-        >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted/60">
-            <Icon className="h-4 w-4 text-foreground" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <p className="text-sm font-bold tracking-tight">{SLOT_LABEL[sh.slot]}</p>
-              {sh.member && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-foreground">
-                  <User className="h-3 w-3" />
-                  {sh.member}
-                </span>
-              )}
+      <span className="absolute -left-[22px] top-5 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-full border-2 border-background bg-foreground/70" />
+      <div className="rounded-2xl border border-border bg-card p-3">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/history/shift"
+            search={{ date: sh.date, shift: sh.slot }}
+            className="flex min-w-0 flex-1 items-center gap-3"
+          >
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted/60">
+              <Icon className="h-4 w-4 text-foreground" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              {sh.stationsTouched} station {sh.stationsTouched === 1 ? "check" : "checks"} ·{" "}
-              {sh.checkedItems}/{sh.totalItems} items
-            </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px]">
-              {sh.stationsComplete > 0 && (
-                <span className="inline-flex items-center gap-1 font-medium text-success">
-                  <CheckCircle2 className="h-3 w-3" />
-                  {sh.stationsComplete} complete
-                </span>
-              )}
-              {sh.flagged > 0 && (
-                <span className="inline-flex items-center gap-1 font-medium text-danger">
-                  <AlertTriangle className="h-3 w-3" />
-                  {sh.flagged} flagged
-                </span>
-              )}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <p className="text-sm font-bold tracking-tight">{SLOT_LABEL[sh.slot]}</p>
+                {sh.member && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                    <User className="h-3 w-3" />
+                    {sh.member}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {sh.stationsTouched} station {sh.stationsTouched === 1 ? "check" : "checks"} ·{" "}
+                {sh.checkedItems}/{sh.totalItems} items
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px]">
+                {sh.stationsComplete > 0 && (
+                  <span className="inline-flex items-center gap-1 font-medium text-success">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {sh.stationsComplete} complete
+                  </span>
+                )}
+                {sh.flagged > 0 && (
+                  <span className="inline-flex items-center gap-1 font-medium text-danger">
+                    <AlertTriangle className="h-3 w-3" />
+                    {sh.flagged} flagged
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="hidden w-32 sm:block">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${pct}%`, background: "var(--gradient-readiness)" }}
-              />
+            <div className="hidden w-32 sm:block">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${pct}%`, background: "var(--gradient-readiness)" }}
+                />
+              </div>
+              <p className="mt-1 text-right text-[10px] font-semibold tabular-nums text-muted-foreground">
+                {pct}%
+              </p>
             </div>
-            <p className="mt-1 text-right text-[10px] font-semibold tabular-nums text-muted-foreground">
-              {pct}%
-            </p>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <button
+            onClick={onToggle}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label={expanded ? "Hide stations" : "Show stations"}
+            title={expanded ? "Hide stations" : "Show stations"}
+          >
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+            />
+          </button>
+          <Link
+            to="/"
+            search={{ date: sh.date, shift: sh.slot }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Reopen this shift"
+            title="Reopen this shift"
+          >
+            <Edit3 className="h-4 w-4" />
+          </Link>
+          <button
+            onClick={onShare}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Copy share link"
+            title={copied ? "Link copied!" : "Copy share link"}
+          >
+            {copied ? (
+              <CheckCircle2 className="h-4 w-4 text-success" />
+            ) : (
+              <Share2 className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+
+        {expanded && (
+          <div className="mt-3 space-y-2 border-t border-dashed border-border pt-3">
+            {sh.stations.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No station data.</p>
+            ) : (
+              sh.stations.map((station) => (
+                <StationRow
+                  key={station.name}
+                  station={station}
+                  date={sh.date}
+                  slot={sh.slot}
+                  expanded={!!expandedStations[`${sh.date}:${sh.slot}:${station.name}`]}
+                  onToggle={() =>
+                    setExpandedStations((prev) => ({
+                      ...prev,
+                      [`${sh.date}:${sh.slot}:${station.name}`]:
+                        !prev[`${sh.date}:${sh.slot}:${station.name}`],
+                    }))
+                  }
+                />
+              ))
+            )}
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-        <Link
-          to="/"
-          search={{ date: sh.date, shift: sh.slot }}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Reopen this shift"
-          title="Reopen this shift"
-        >
-          <Edit3 className="h-4 w-4" />
-        </Link>
-        <button
-          onClick={onShare}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Copy share link"
-          title={copied ? "Link copied!" : "Copy share link"}
-        >
-          {copied ? (
-            <CheckCircle2 className="h-4 w-4 text-success" />
-          ) : (
-            <Share2 className="h-4 w-4" />
-          )}
-        </button>
+        )}
       </div>
     </li>
+  );
+}
+
+function StationRow({
+  station,
+  date,
+  slot,
+  expanded,
+  onToggle,
+}: {
+  station: ShiftHistoryStation;
+  date: string;
+  slot: Slot;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const pct = station.totalItems
+    ? Math.round((station.checkedItems / station.totalItems) * 100)
+    : 0;
+
+  return (
+    <div className="rounded-2xl border border-border bg-muted/30">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-muted/50"
+        aria-expanded={expanded}
+      >
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-card">
+          {station.complete ? (
+            <CheckCircle2 className="h-4 w-4 text-success" />
+          ) : station.flagged > 0 ? (
+            <AlertTriangle className="h-4 w-4 text-danger" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold tracking-tight">{station.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {station.checkedItems}/{station.totalItems} items · {station.flagged} flagged
+          </p>
+        </div>
+        <div className="hidden w-24 sm:block">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${pct}%`, background: "var(--gradient-readiness)" }}
+            />
+          </div>
+          <p className="mt-1 text-right text-[10px] font-semibold tabular-nums text-muted-foreground">
+            {pct}%
+          </p>
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+            expanded ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-dashed border-border p-3">
+          {station.items.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No checked items.</p>
+          ) : (
+            <ul className="space-y-2">
+              {station.items.map((it) => (
+                <li
+                  key={`${it.group}:${it.name}`}
+                  className={`rounded-xl border bg-card p-2.5 ${
+                    it.flagged ? "border-rose-200" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{it.name}</p>
+                      {it.group !== station.name && (
+                        <p className="text-[10px] text-muted-foreground">{it.group}</p>
+                      )}
+                      {it.note && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">{it.note}</p>
+                      )}
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        it.flagged
+                          ? "bg-danger-soft text-danger"
+                          : "bg-success-soft text-success"
+                      }`}
+                    >
+                      {it.flagged ? (
+                        <AlertTriangle className="h-3 w-3" />
+                      ) : (
+                        <CheckCircle2 className="h-3 w-3" />
+                      )}
+                      {it.status}
+                    </span>
+                  </div>
+                  {it.photo && (
+                    <a
+                      href={it.photo}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <img
+                        src={it.photo}
+                        alt={`Photo for ${it.name}`}
+                        className="h-16 w-16 rounded-lg border border-border object-cover"
+                      />
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link
+            to="/section/$name"
+            params={{ name: station.name }}
+            search={{ date, shift: slot }}
+            className="mt-3 inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-foreground hover:bg-accent"
+            title="Reopen this station"
+          >
+            <Edit3 className="h-3 w-3" />
+            Reopen station
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
 
