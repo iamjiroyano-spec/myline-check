@@ -16,9 +16,30 @@ export const STATUSES = data.statuses;
 export const STAFF = data.staff;
 export const SECTIONS = data.sections.filter((s) => s.items.length > 0);
 
-/** Returns the effective items for a section, honoring user category edits
- *  stored under `linecheck:section-items:<name>`. Falls back to the shipped
+export type SectionDef = { name: string; items: { name: string }[] };
+
+/** Returns the effective list of stations, honoring user additions/renames
+ *  stored under `linecheck:settings:stations`. Falls back to the shipped
  *  JSON structure when no override exists. */
+export function getEffectiveSections(): SectionDef[] {
+  try {
+    const raw = lsStore.getItem("linecheck:settings:stations");
+    if (raw) {
+      const arr = JSON.parse(raw) as Array<{ name: string; items?: { name: string }[] }>;
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr.map((s) => ({
+          name: s.name,
+          items: Array.isArray(s.items) ? s.items : [],
+        }));
+      }
+    }
+  } catch {}
+  return SECTIONS;
+}
+
+/** Returns the effective items for a section, honoring user category edits
+ *  stored under `linecheck:section-items:<name>`. Falls back to the station
+ *  items configured in Settings, then the shipped JSON structure. */
 export function effectiveItems(sectionName: string): { name: string }[] {
   try {
     const raw = lsStore.getItem(`linecheck:section-items:${sectionName}`);
@@ -29,6 +50,8 @@ export function effectiveItems(sectionName: string): { name: string }[] {
       }
     }
   } catch {}
+  const fromSettings = getEffectiveSections().find((s) => s.name === sectionName);
+  if (fromSettings) return fromSettings.items;
   const sec = data.sections.find((s) => s.name === sectionName);
   return sec ? sec.items : [];
 }
