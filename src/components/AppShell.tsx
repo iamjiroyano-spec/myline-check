@@ -367,12 +367,21 @@ function ThemeToggle() {
     "#87a878",
   ]);
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-    setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
-    import("@/lib/customTheme").then(({ loadCustomTheme }) => {
-      const c = loadCustomTheme();
-      setCustomSwatch([c.primary, c.background, c.accent]);
-    });
+    const sync = () => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+      setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
+      import("@/lib/customTheme").then(({ loadCustomTheme }) => {
+        const c = loadCustomTheme();
+        setCustomSwatch([c.primary, c.background, c.accent]);
+      });
+    };
+    sync();
+    window.addEventListener("linecheck:update", sync);
+    window.addEventListener("linecheck:scope-change", sync);
+    return () => {
+      window.removeEventListener("linecheck:update", sync);
+      window.removeEventListener("linecheck:scope-change", sync);
+    };
   }, []);
   useEffect(() => {
     if (!open) return;
