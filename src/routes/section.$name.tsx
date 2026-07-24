@@ -884,6 +884,24 @@ function SectionPage() {
               </div>
             </section>
           ))}
+
+      {!editMode && (
+        <section className="mt-8">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Station Comment / Feedback
+            </h3>
+            <span className="text-[10px] text-muted-foreground">
+              Auto-saved · {SLOT_LABEL_SHORT[slot] ?? slot}
+            </span>
+          </div>
+          <AutoGrowTextarea
+            value={comment}
+            onChange={onCommentChange}
+            placeholder={`Add a comment or feedback for ${name}…`}
+          />
+        </section>
+      )}
     </AppShell>
   );
 }
