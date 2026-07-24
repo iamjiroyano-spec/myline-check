@@ -88,16 +88,21 @@ function ShiftDetail() {
     for (const sec of SECTIONS) {
       const state = loadSection(sec.name, date);
       const items: Row[] = [];
-      for (const it of sec.items) {
-        const e = state.entries[it.name]?.[shift];
-        if (!e?.status) continue;
-        items.push({
-          section: sec.name,
-          item: it.name,
-          status: e.status,
-          note: e.note || "",
-          flagged: FLAG_STATUSES.has(e.status),
-        });
+    for (const sec of getEffectiveSections()) {
+      const state = loadSection(sec.name, date);
+      const items: Row[] = [];
+      for (const cat of effectiveCategorizedItems(sec.name)) {
+        for (const it of cat.items) {
+          const e = readEntry(state, cat.group, it.name, shift);
+          if (!e?.status) continue;
+          items.push({
+            section: sec.name,
+            item: it.name,
+            status: e.status,
+            note: e.note || "",
+            flagged: FLAG_STATUSES.has(e.status),
+          });
+        }
       }
       if (items.length) out.push({ section: sec.name, items });
     }
