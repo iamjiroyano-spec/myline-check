@@ -322,9 +322,9 @@ function TopBar({
             className="bg-transparent text-xs font-semibold outline-none"
             aria-label="Shift"
           >
-            {(["op", "mid", "cl"] as Slot[]).map((v) => (
-              <option key={v} value={v}>
-                {shiftLabels[v]}
+            {shifts.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
               </option>
             ))}
           </select>
