@@ -9,6 +9,7 @@ import {
   SLOT_LABEL,
   getShifts,
   type ShiftHistory,
+  type ShiftHistoryStation,
   type Slot,
 } from "@/lib/lineCheck";
 
