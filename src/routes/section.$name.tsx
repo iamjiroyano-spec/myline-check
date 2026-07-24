@@ -17,7 +17,7 @@ import {
   type SectionState,
   type Slot,
 } from "@/lib/lineCheck";
-import { Check, ChevronDown, ChevronUp, Download, Edit3, Filter, GripVertical, MoreHorizontal, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Download, Edit3, Filter, GripVertical, MoreHorizontal, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
 import { z } from "zod";
 import {
   DndContext,
@@ -847,6 +847,46 @@ function SectionPage() {
                         </svg>
                       </div>
 
+                      <label
+                        className="grid h-7 w-7 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-accent"
+                        aria-label={`Capture photo for ${item.name}`}
+                        title={e?.photo ? "Replace photo" : "Capture photo"}
+                      >
+                        <Camera className={`h-4 w-4 ${e?.photo ? "text-foreground" : ""}`} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={(ev) => {
+                            const file = ev.target.files?.[0];
+                            ev.target.value = "";
+                            if (!file) return;
+                            const MAX = 8 * 1024 * 1024;
+                            if (file.size > MAX) {
+                              alert("Image too large (max 8MB).");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const dataUrl = typeof reader.result === "string" ? reader.result : "";
+                              if (dataUrl) setEntry(cat.group, item.name, { photo: dataUrl });
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                      {e?.photo && (
+                        <a
+                          href={e.photo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
+                          title="View photo"
+                        >
+                          <img src={e.photo} alt="" className="h-full w-full object-cover" />
+                        </a>
+                      )}
                       <button
                         className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent"
                         aria-label="More options"
