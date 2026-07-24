@@ -41,19 +41,49 @@ export function getEffectiveSections(): SectionDef[] {
  *  stored under `linecheck:section-items:<name>`. Falls back to the station
  *  items configured in Settings, then the shipped JSON structure. */
 export function effectiveItems(sectionName: string): { name: string }[] {
+  return effectiveCategorizedItems(sectionName).flatMap((c) => c.items);
+}
+
+/** Returns the effective items grouped by category for a section. */
+export function effectiveCategorizedItems(
+  sectionName: string,
+): { group: string; items: { name: string }[] }[] {
   try {
     const raw = lsStore.getItem(`linecheck:section-items:${sectionName}`);
     if (raw) {
-      const cats = JSON.parse(raw) as { items: { name: string }[] }[];
+      const cats = JSON.parse(raw) as { group?: string; items: { name: string }[] }[];
       if (Array.isArray(cats)) {
-        return cats.flatMap((c) => (Array.isArray(c.items) ? c.items : []));
+        return cats.map((c, i) => ({
+          group: c.group ?? `Group ${i + 1}`,
+          items: Array.isArray(c.items) ? c.items : [],
+        }));
       }
     }
   } catch {}
   const fromSettings = getEffectiveSections().find((s) => s.name === sectionName);
-  if (fromSettings) return fromSettings.items;
+  if (fromSettings) return [{ group: sectionName, items: fromSettings.items }];
   const sec = data.sections.find((s) => s.name === sectionName);
-  return sec ? sec.items : [];
+  return sec ? [{ group: sectionName, items: sec.items }] : [];
+}
+
+/** Compound entry key so items with the same display name in different
+ *  categories don't share status. */
+export function entryKey(group: string, itemName: string) {
+  return `${group}::${itemName}`;
+}
+
+/** Reads an entry using the compound key, falling back to the legacy
+ *  bare-name key for previously-saved data. */
+export function readEntry(
+  state: SectionState,
+  group: string,
+  itemName: string,
+  slot: Slot,
+): Entry | undefined {
+  return (
+    state.entries[entryKey(group, itemName)]?.[slot] ??
+    state.entries[itemName]?.[slot]
+  );
 }
 
 export const FLAG_STATUSES = new Set([
@@ -114,22 +144,26 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let checkedItems = 0;
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
-    const items = effectiveItems(sec.name);
+    const cats = effectiveCategorizedItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of items) {
-      totalItems++;
-      const e = state.entries[item.name]?.[slot];
-      if (e?.status) {
-        anyTouched = true;
-        checkedItems++;
-        if (FLAG_STATUSES.has(e.status)) flagged++;
-      } else {
-        allDone = false;
+    let secTotal = 0;
+    for (const cat of cats) {
+      for (const item of cat.items) {
+        totalItems++;
+        secTotal++;
+        const e = readEntry(state, cat.group, item.name, slot);
+        if (e?.status) {
+          anyTouched = true;
+          checkedItems++;
+          if (FLAG_STATUSES.has(e.status)) flagged++;
+        } else {
+          allDone = false;
+        }
       }
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && secTotal > 0) stationsComplete++;
   }
   return {
     date,
@@ -166,15 +200,19 @@ export function defaultShift(): Slot {
 
 export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
   const state = loadSection(name, date);
-  const items = effectiveItems(name);
+  const cats = effectiveCategorizedItems(name);
   let done = 0;
   let flagged = 0;
-  for (const item of items) {
-    const e = state.entries[item.name]?.[slot];
-    if (e?.status) done++;
-    if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
+  let total = 0;
+  for (const cat of cats) {
+    for (const item of cat.items) {
+      total++;
+      const e = readEntry(state, cat.group, item.name, slot);
+      if (e?.status) done++;
+      if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
+    }
   }
-  return { done, total: items.length, flagged };
+  return { done, total, flagged };
 }
 
 export type FlaggedRow = {
@@ -188,10 +226,12 @@ export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   const rows: FlaggedRow[] = [];
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
-    for (const item of effectiveItems(sec.name)) {
-      const e = state.entries[item.name]?.[slot];
-      if (e?.status && FLAG_STATUSES.has(e.status)) {
-        rows.push({ section: sec.name, item: item.name, status: e.status, slot });
+    for (const cat of effectiveCategorizedItems(sec.name)) {
+      for (const item of cat.items) {
+        const e = readEntry(state, cat.group, item.name, slot);
+        if (e?.status && FLAG_STATUSES.has(e.status)) {
+          rows.push({ section: sec.name, item: item.name, status: e.status, slot });
+        }
       }
     }
   }
@@ -248,26 +288,30 @@ export function dayHistory(date: string): DayHistory {
   let checkedItems = 0;
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
-    const items = effectiveItems(sec.name);
+    const cats = effectiveCategorizedItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of items) {
-      totalItems++;
-      const slots: Slot[] = ["op", "mid", "cl"];
-      let itemDoneAnyShift = false;
-      for (const slot of slots) {
-        const e = state.entries[item.name]?.[slot];
-        if (e?.status) {
-          anyTouched = true;
-          itemDoneAnyShift = true;
-          if (FLAG_STATUSES.has(e.status)) flagged++;
+    let secTotal = 0;
+    for (const cat of cats) {
+      for (const item of cat.items) {
+        totalItems++;
+        secTotal++;
+        const slots: Slot[] = ["op", "mid", "cl"];
+        let itemDoneAnyShift = false;
+        for (const slot of slots) {
+          const e = readEntry(state, cat.group, item.name, slot);
+          if (e?.status) {
+            anyTouched = true;
+            itemDoneAnyShift = true;
+            if (FLAG_STATUSES.has(e.status)) flagged++;
+          }
         }
+        if (itemDoneAnyShift) checkedItems++;
+        else allDone = false;
       }
-      if (itemDoneAnyShift) checkedItems++;
-      else allDone = false;
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && secTotal > 0) stationsComplete++;
   }
   return { date, stationsTouched, stationsComplete, flagged, totalItems, checkedItems };
 }
