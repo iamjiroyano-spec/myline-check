@@ -446,6 +446,8 @@ function ShiftRow({
                         !prev[`${sh.date}:${sh.slot}:${station.name}`],
                     }))
                   }
+                  onShare={onShare}
+                  copied={copied}
                 />
               ))
             )}
