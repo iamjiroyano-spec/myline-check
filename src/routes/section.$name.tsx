@@ -17,7 +17,7 @@ import {
   type SectionState,
   type Slot,
 } from "@/lib/lineCheck";
-import { Camera, Check, ChevronDown, ChevronUp, Download, Edit3, Filter, GripVertical, MoreHorizontal, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Download, Edit3, Filter, GripVertical, Save, Thermometer, Plus, Trash2, Upload, X } from "lucide-react";
 import { z } from "zod";
 import {
   DndContext,
