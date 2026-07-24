@@ -16,9 +16,30 @@ export const STATUSES = data.statuses;
 export const STAFF = data.staff;
 export const SECTIONS = data.sections.filter((s) => s.items.length > 0);
 
-/** Returns the effective items for a section, honoring user category edits
- *  stored under `linecheck:section-items:<name>`. Falls back to the shipped
+export type SectionDef = { name: string; items: { name: string }[] };
+
+/** Returns the effective list of stations, honoring user additions/renames
+ *  stored under `linecheck:settings:stations`. Falls back to the shipped
  *  JSON structure when no override exists. */
+export function getEffectiveSections(): SectionDef[] {
+  try {
+    const raw = lsStore.getItem("linecheck:settings:stations");
+    if (raw) {
+      const arr = JSON.parse(raw) as Array<{ name: string; items?: { name: string }[] }>;
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr.map((s) => ({
+          name: s.name,
+          items: Array.isArray(s.items) ? s.items : [],
+        }));
+      }
+    }
+  } catch {}
+  return SECTIONS;
+}
+
+/** Returns the effective items for a section, honoring user category edits
+ *  stored under `linecheck:section-items:<name>`. Falls back to the station
+ *  items configured in Settings, then the shipped JSON structure. */
 export function effectiveItems(sectionName: string): { name: string }[] {
   try {
     const raw = lsStore.getItem(`linecheck:section-items:${sectionName}`);
@@ -29,6 +50,8 @@ export function effectiveItems(sectionName: string): { name: string }[] {
       }
     }
   } catch {}
+  const fromSettings = getEffectiveSections().find((s) => s.name === sectionName);
+  if (fromSettings) return fromSettings.items;
   const sec = data.sections.find((s) => s.name === sectionName);
   return sec ? sec.items : [];
 }
@@ -89,7 +112,7 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let flagged = 0;
   let totalItems = 0;
   let checkedItems = 0;
-  for (const sec of SECTIONS) {
+  for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     const items = effectiveItems(sec.name);
     let anyTouched = false;
@@ -142,8 +165,6 @@ export function defaultShift(): Slot {
 }
 
 export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
-  const sec = SECTIONS.find((s) => s.name === name);
-  if (!sec) return { done: 0, total: 0, flagged: 0 };
   const state = loadSection(name, date);
   const items = effectiveItems(name);
   let done = 0;
@@ -165,7 +186,7 @@ export type FlaggedRow = {
 
 export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   const rows: FlaggedRow[] = [];
-  for (const sec of SECTIONS) {
+  for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     for (const item of effectiveItems(sec.name)) {
       const e = state.entries[item.name]?.[slot];
@@ -225,7 +246,7 @@ export function dayHistory(date: string): DayHistory {
   let flagged = 0;
   let totalItems = 0;
   let checkedItems = 0;
-  for (const sec of SECTIONS) {
+  for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     const items = effectiveItems(sec.name);
     let anyTouched = false;

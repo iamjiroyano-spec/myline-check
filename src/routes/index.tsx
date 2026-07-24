@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, useShellState, SECTION_ICONS } from "@/components/AppShell";
 import {
-  SECTIONS,
+  getEffectiveSections,
   allFlagged,
   sectionProgress,
   type FlaggedRow,
@@ -86,7 +86,7 @@ function Dashboard() {
     let checkedItems = 0;
     let stationsComplete = 0;
     const perStation: { name: string; done: number; total: number; pct: number }[] = [];
-    for (const s of SECTIONS) {
+    for (const s of getEffectiveSections()) {
       const { done, total } = sectionProgress(s.name, shell.shift, shell.date);
       totalItems += total;
       checkedItems += done;
