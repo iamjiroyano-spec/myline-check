@@ -889,7 +889,7 @@ function SectionPage() {
                             const reader = new FileReader();
                             reader.onload = () => {
                               const dataUrl = typeof reader.result === "string" ? reader.result : "";
-                              if (dataUrl) setEntry(cat.group, item.name, { photo: dataUrl });
+                              if (dataUrl) setEntry(cat.group, item.name, occ, { photo: dataUrl });
                             };
                             reader.readAsDataURL(file);
                           }}
