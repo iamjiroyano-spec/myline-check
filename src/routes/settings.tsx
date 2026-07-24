@@ -162,6 +162,7 @@ function SettingsPage() {
             eventName="linecheck:containers-update"
           />
         )}
+        {tab === "access" && isAdmin && <AccessPanel />}
       </div>
     </AppShell>
   );
