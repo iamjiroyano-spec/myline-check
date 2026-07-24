@@ -8,6 +8,9 @@ import {
   loadMember,
   SLOT_LABEL,
   shiftHistory,
+  getEffectiveSections,
+  effectiveCategorizedItems,
+  readEntry,
   type Slot,
 } from "@/lib/lineCheck";
 import {
