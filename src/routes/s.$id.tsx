@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   FLAG_STATUSES,
   SLOT_LABEL,
+  entryKey,
   type Slot,
 } from "@/lib/lineCheck";
 import {
@@ -83,44 +84,93 @@ function SharedView() {
 
     type Item = {
       item: string;
-      group: string;
       status: string;
       note: string;
       photo?: string;
       flagged: boolean;
     };
+    type CategoryBlock = { group: string; items: Item[] };
     const out: {
       section: string;
-      items: Item[];
+      categories: CategoryBlock[];
+      itemCount: number;
+      flaggedCount: number;
+      okCount: number;
+      photoCount: number;
       temps: { group: string; value: string }[];
       tempUnit: "F" | "C";
       comment: string;
     }[] = [];
+
     for (const s of data.payload.sections) {
       const st = s.state;
-      const items: Item[] = [];
-      for (const [key, byslot] of Object.entries(st.entries ?? {})) {
+      const entries = st.entries ?? {};
+      const seen = new Set<string>();
+      const categories: CategoryBlock[] = [];
+
+      // Preferred: use the section's category arrangement from the payload.
+      const cats = Array.isArray(s.categories) ? s.categories : [];
+      for (const cat of cats) {
+        const items: Item[] = [];
+        for (const it of cat.items ?? []) {
+          const key = entryKey(cat.group, it.name);
+          const legacy = entries[it.name]?.[slot];
+          const e = entries[key]?.[slot] ?? legacy;
+          if (!e?.status) continue;
+          seen.add(key);
+          if (legacy && !entries[key]) seen.add(it.name);
+          items.push({
+            item: it.name,
+            status: e.status,
+            note: e.note || "",
+            photo: e.photo,
+            flagged: FLAG_STATUSES.has(e.status),
+          });
+        }
+        if (items.length) categories.push({ group: cat.group, items });
+      }
+
+      // Fallback: surface any recorded entries that weren't matched above
+      // (e.g. old shares without category info, or items since removed).
+      const leftover: Record<string, Item[]> = {};
+      for (const [key, byslot] of Object.entries(entries)) {
+        if (seen.has(key)) continue;
         const e = byslot?.[slot];
         if (!e?.status) continue;
         const group = key.includes("::") ? key.split("::")[0] : "";
-        const itemName = key.includes("::") ? key.split("::").slice(1).join("::") : key;
-        items.push({
+        const itemName = key.includes("::")
+          ? key.split("::").slice(1).join("::")
+          : key;
+        (leftover[group] ||= []).push({
           item: itemName,
-          group,
           status: e.status,
           note: e.note || "",
           photo: e.photo,
           flagged: FLAG_STATUSES.has(e.status),
         });
       }
+      for (const [group, items] of Object.entries(leftover)) {
+        const existing = categories.find((c) => c.group === group);
+        if (existing) existing.items.push(...items);
+        else categories.push({ group, items });
+      }
+
+      const allItems = categories.flatMap((c) => c.items);
+      const flaggedCount = allItems.filter((i) => i.flagged).length;
+      const okCount = allItems.length - flaggedCount;
+      const photoCount = allItems.filter((i) => i.photo).length;
       const temps = Object.entries(s.temps ?? {})
         .filter(([, v]) => v && String(v).trim().length > 0)
         .map(([group, value]) => ({ group, value: String(value) }));
       const comment = (s.comment || "").trim();
-      if (items.length || temps.length || comment) {
+      if (allItems.length || temps.length || comment) {
         out.push({
           section: s.name,
-          items,
+          categories,
+          itemCount: allItems.length,
+          flaggedCount,
+          okCount,
+          photoCount,
           temps,
           tempUnit: s.tempUnit ?? "F",
           comment,
@@ -129,6 +179,7 @@ function SharedView() {
     }
     return out;
   }, [data]);
+
 
   const displayTemp = (rawF: string, unit: "F" | "C") => {
     const n = Number(rawF);
@@ -223,10 +274,10 @@ function SharedView() {
         ) : (
           <div className="mt-6 grid gap-3">
             {grouped.map((r) => {
-              const flaggedCount = r.items.filter((i) => i.flagged).length;
-              const okCount = r.items.length - flaggedCount;
+              const flaggedCount = r.flaggedCount;
+              const okCount = r.okCount;
               const isOpen = !!openStations[r.section];
-              const photoCount = r.items.filter((i) => i.photo).length;
+              const photoCount = r.photoCount;
               return (
                 <section
                   key={r.section}
@@ -290,67 +341,74 @@ function SharedView() {
                         </div>
                       )}
 
-                      {r.items.length === 0 ? (
+                      {r.itemCount === 0 ? (
                         <p className="text-xs text-muted-foreground">
                           No items were checked for this station.
                         </p>
                       ) : (
-                        <ul className="space-y-2">
-                          {r.items.map((it) => (
-                            <li
-                              key={`${it.group}::${it.item}`}
-                              className={`rounded-xl border p-2.5 ${
-                                it.flagged
-                                  ? "border-rose-200 bg-rose-50/40"
-                                  : "border-border bg-background/40"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-semibold">{it.item}</p>
-                                  {it.group && (
-                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                      {it.group}
-                                    </p>
-                                  )}
-                                  {it.note && (
-                                    <p className="mt-1 text-xs text-muted-foreground">{it.note}</p>
-                                  )}
-                                </div>
-                                <span
-                                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                    it.flagged
-                                      ? "bg-danger-soft text-danger"
-                                      : "bg-success-soft text-success"
-                                  }`}
-                                >
-                                  {it.flagged ? (
-                                    <AlertTriangle className="h-3 w-3" />
-                                  ) : (
-                                    <CheckCircle2 className="h-3 w-3" />
-                                  )}
-                                  {it.status}
-                                </span>
-                              </div>
-                              {it.photo && (
-                                <a
-                                  href={it.photo}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="mt-2 block overflow-hidden rounded-lg border border-border"
-                                >
-                                  <img
-                                    src={it.photo}
-                                    alt={it.item}
-                                    className="max-h-64 w-full object-cover"
-                                    loading="lazy"
-                                  />
-                                </a>
+                        <div className="space-y-4">
+                          {r.categories.map((cat) => (
+                            <div key={cat.group}>
+                              {cat.group && (
+                                <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                                  {cat.group}
+                                </p>
                               )}
-                            </li>
+                              <ul className="space-y-2">
+                                {cat.items.map((it) => (
+                                  <li
+                                    key={`${cat.group}::${it.item}`}
+                                    className={`rounded-xl border p-2.5 ${
+                                      it.flagged
+                                        ? "border-rose-200 bg-rose-50/40"
+                                        : "border-border bg-background/40"
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold">{it.item}</p>
+                                        {it.note && (
+                                          <p className="mt-1 text-xs text-muted-foreground">{it.note}</p>
+                                        )}
+                                      </div>
+                                      <span
+                                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                          it.flagged
+                                            ? "bg-danger-soft text-danger"
+                                            : "bg-success-soft text-success"
+                                        }`}
+                                      >
+                                        {it.flagged ? (
+                                          <AlertTriangle className="h-3 w-3" />
+                                        ) : (
+                                          <CheckCircle2 className="h-3 w-3" />
+                                        )}
+                                        {it.status}
+                                      </span>
+                                    </div>
+                                    {it.photo && (
+                                      <a
+                                        href={it.photo}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-2 block overflow-hidden rounded-lg border border-border"
+                                      >
+                                        <img
+                                          src={it.photo}
+                                          alt={it.item}
+                                          className="max-h-64 w-full object-cover"
+                                          loading="lazy"
+                                        />
+                                      </a>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       )}
+
 
                       {r.comment && (
                         <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3">
