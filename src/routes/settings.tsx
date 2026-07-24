@@ -2,7 +2,7 @@ import { lsStore } from "@/lib/lsStore";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useShellState, SECTION_ICONS } from "@/components/AppShell";
-import { SECTIONS, STAFF, STATUSES } from "@/lib/lineCheck";
+import { SECTIONS, STAFF, STATUSES, getShiftLabels, SHIFT_LABELS_KEY, type Slot } from "@/lib/lineCheck";
 import {
   ArrowLeft,
   Settings as SettingsIcon,
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
-type Tab = "branding" | "stations" | "team" | "statuses" | "shelves" | "containers";
+type Tab = "branding" | "stations" | "team" | "statuses" | "shifts" | "shelves" | "containers";
 
 const ICON_OPTIONS = Object.keys(SECTION_ICONS);
 
@@ -115,6 +115,9 @@ function SettingsPage() {
           <TabPill active={tab === "statuses"} onClick={() => setTab("statuses")} icon={<Tag className="h-4 w-4" />}>
             Status Options
           </TabPill>
+          <TabPill active={tab === "shifts"} onClick={() => setTab("shifts")} icon={<Clock className="h-4 w-4" />}>
+            Shifts
+          </TabPill>
           <TabPill active={tab === "shelves"} onClick={() => setTab("shelves")} icon={<Clock className="h-4 w-4" />}>
             Shelf Life
           </TabPill>
@@ -127,6 +130,7 @@ function SettingsPage() {
         {tab === "stations" && <StationsPanel />}
         {tab === "team" && <TeamPanel />}
         {tab === "statuses" && <StatusPanel />}
+        {tab === "shifts" && <ShiftsPanel />}
         {tab === "shelves" && (
           <SimpleListPanel
             storageKey={SHELVES_KEY}
@@ -725,7 +729,73 @@ function StatusPanel() {
   );
 }
 
+/* ============= SHIFTS ============= */
+
+const SHIFT_SLOTS: Slot[] = ["op", "mid", "cl"];
+const SHIFT_DEFAULTS: Record<Slot, string> = { op: "Opening", mid: "Mid", cl: "Closing" };
+
+function ShiftsPanel() {
+  const [labels, setLabels] = useState<Record<Slot, string>>(() => getShiftLabels());
+  const [saved, setSaved] = useState(false);
+
+  const update = (slot: Slot, value: string) => {
+    const next = { ...labels, [slot]: value };
+    setLabels(next);
+    try {
+      lsStore.setItem(SHIFT_LABELS_KEY, JSON.stringify(next));
+      window.dispatchEvent(new Event("linecheck:shifts-update"));
+      window.dispatchEvent(new Event("linecheck:update"));
+    } catch {}
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 900);
+  };
+
+  const resetOne = (slot: Slot) => update(slot, SHIFT_DEFAULTS[slot]);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-bold tracking-tight">Shift names</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Rename the three shifts to match your operation (e.g. AM / PM / Night).
+            The underlying schedule is unchanged.
+          </p>
+        </div>
+        {saved && (
+          <span className="rounded-full bg-success-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-success">
+            Saved
+          </span>
+        )}
+      </div>
+
+      <ul className="space-y-3">
+        {SHIFT_SLOTS.map((slot) => (
+          <li key={slot} className="flex items-center gap-3">
+            <span className="w-24 shrink-0 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              {SHIFT_DEFAULTS[slot]}
+            </span>
+            <input
+              value={labels[slot]}
+              onChange={(e) => update(slot, e.target.value)}
+              placeholder={SHIFT_DEFAULTS[slot]}
+              className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+            />
+            <button
+              onClick={() => resetOne(slot)}
+              className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              Reset
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /* ============= SIMPLE LIST (SHELVES / CONTAINERS) ============= */
+
 
 function SimpleListPanel({
   storageKey,
