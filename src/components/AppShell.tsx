@@ -330,7 +330,11 @@ function TopBar({
             aria-label="Shift"
           >
             {shifts.map((s) => (
-              <option key={s.id} value={s.id}>
+              <option
+                key={s.id}
+                value={s.id}
+                style={{ background: "var(--background)", color: "var(--foreground)" }}
+              >
                 {s.label}
               </option>
             ))}
@@ -742,9 +746,11 @@ function TeamMemberSelect({ value, onChange }: { value: string; onChange: (v: st
       className="bg-transparent text-xs font-semibold outline-none"
       aria-label="Team member"
     >
-      <option value="">Team Member</option>
+      <option value="" style={{ background: "var(--background)", color: "var(--foreground)" }}>
+        Team Member
+      </option>
       {members.map((p) => (
-        <option key={p} value={p}>
+        <option key={p} value={p} style={{ background: "var(--background)", color: "var(--foreground)" }}>
           {p}
         </option>
       ))}
