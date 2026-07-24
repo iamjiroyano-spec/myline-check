@@ -288,26 +288,30 @@ export function dayHistory(date: string): DayHistory {
   let checkedItems = 0;
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
-    const items = effectiveItems(sec.name);
+    const cats = effectiveCategorizedItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of items) {
-      totalItems++;
-      const slots: Slot[] = ["op", "mid", "cl"];
-      let itemDoneAnyShift = false;
-      for (const slot of slots) {
-        const e = state.entries[item.name]?.[slot];
-        if (e?.status) {
-          anyTouched = true;
-          itemDoneAnyShift = true;
-          if (FLAG_STATUSES.has(e.status)) flagged++;
+    let secTotal = 0;
+    for (const cat of cats) {
+      for (const item of cat.items) {
+        totalItems++;
+        secTotal++;
+        const slots: Slot[] = ["op", "mid", "cl"];
+        let itemDoneAnyShift = false;
+        for (const slot of slots) {
+          const e = readEntry(state, cat.group, item.name, slot);
+          if (e?.status) {
+            anyTouched = true;
+            itemDoneAnyShift = true;
+            if (FLAG_STATUSES.has(e.status)) flagged++;
+          }
         }
+        if (itemDoneAnyShift) checkedItems++;
+        else allDone = false;
       }
-      if (itemDoneAnyShift) checkedItems++;
-      else allDone = false;
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && secTotal > 0) stationsComplete++;
   }
   return { date, stationsTouched, stationsComplete, flagged, totalItems, checkedItems };
 }
