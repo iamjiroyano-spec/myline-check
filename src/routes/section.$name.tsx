@@ -162,7 +162,12 @@ function SectionPage() {
     () => `linecheck:temps:${name}:${shell.date}:${shell.shift}`,
     [name, shell.date, shell.shift],
   );
+  const commentKey = useMemo(
+    () => `linecheck:section-comment:${name}:${shell.date}:${shell.shift}`,
+    [name, shell.date, shell.shift],
+  );
   const [state, setState] = useState<SectionState>(() => loadSection(name, shell.date));
+  const [comment, setComment] = useState<string>("");
   const [editMode, setEditMode] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
