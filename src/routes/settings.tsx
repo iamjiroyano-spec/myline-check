@@ -115,6 +115,9 @@ function SettingsPage() {
           <TabPill active={tab === "statuses"} onClick={() => setTab("statuses")} icon={<Tag className="h-4 w-4" />}>
             Status Options
           </TabPill>
+          <TabPill active={tab === "shifts"} onClick={() => setTab("shifts")} icon={<Clock className="h-4 w-4" />}>
+            Shifts
+          </TabPill>
           <TabPill active={tab === "shelves"} onClick={() => setTab("shelves")} icon={<Clock className="h-4 w-4" />}>
             Shelf Life
           </TabPill>
