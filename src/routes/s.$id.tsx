@@ -221,19 +221,43 @@ function SharedView() {
             No items recorded for this shift.
           </div>
         ) : (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3">
             {grouped.map((r) => {
               const flaggedCount = r.items.filter((i) => i.flagged).length;
               const okCount = r.items.length - flaggedCount;
+              const isOpen = !!openStations[r.section];
+              const photoCount = r.items.filter((i) => i.photo).length;
               return (
                 <section
                   key={r.section}
-                  className="flex flex-col rounded-2xl border border-border bg-card p-4"
+                  className="overflow-hidden rounded-2xl border border-border bg-card"
                 >
-                  <header className="mb-3 flex items-center gap-2 border-b border-border/60 pb-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenStations((prev) => ({ ...prev, [r.section]: !prev[r.section] }))
+                    }
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                    aria-expanded={isOpen}
+                  >
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                        isOpen ? "rotate-0" : "-rotate-90"
+                      }`}
+                    />
                     <h3 className="min-w-0 flex-1 truncate text-sm font-black uppercase tracking-wider">
                       {r.section}
                     </h3>
+                    {r.temps.length > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[10px] font-bold text-info">
+                        <Thermometer className="h-3 w-3" /> {r.temps.length}
+                      </span>
+                    )}
+                    {photoCount > 0 && (
+                      <span className="inline-flex shrink-0 items-center rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                        📷 {photoCount}
+                      </span>
+                    )}
                     {okCount > 0 && (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-bold text-success">
                         <CheckCircle2 className="h-3 w-3" /> {okCount}
@@ -244,45 +268,106 @@ function SharedView() {
                         <AlertTriangle className="h-3 w-3" /> {flaggedCount}
                       </span>
                     )}
-                  </header>
-                  <ul className="space-y-2">
-                    {r.items.map((it) => (
-                      <li
-                        key={it.item}
-                        className={`rounded-xl border p-2.5 ${
-                          it.flagged ? "border-rose-200 bg-rose-50/40" : "border-border bg-background/40"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">{it.item}</p>
-                            {it.note && (
-                              <p className="mt-0.5 text-xs text-muted-foreground">{it.note}</p>
-                            )}
-                          </div>
-                          <span
-                            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                              it.flagged
-                                ? "bg-danger-soft text-danger"
-                                : "bg-success-soft text-success"
-                            }`}
-                          >
-                            {it.flagged ? (
-                              <AlertTriangle className="h-3 w-3" />
-                            ) : (
-                              <CheckCircle2 className="h-3 w-3" />
-                            )}
-                            {it.status}
-                          </span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-border/60 px-4 py-3">
+                      {r.temps.length > 0 && (
+                        <div className="mb-3 rounded-xl bg-muted/40 p-3">
+                          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <Thermometer className="h-3.5 w-3.5" /> Temperatures
+                          </p>
+                          <ul className="grid gap-1 sm:grid-cols-2">
+                            {r.temps.map((t) => (
+                              <li key={t.group} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="truncate text-muted-foreground">{t.group}</span>
+                                <span className="font-bold tabular-nums">
+                                  {displayTemp(t.value, r.tempUnit)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
+                      )}
+
+                      {r.items.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          No items were checked for this station.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {r.items.map((it) => (
+                            <li
+                              key={`${it.group}::${it.item}`}
+                              className={`rounded-xl border p-2.5 ${
+                                it.flagged
+                                  ? "border-rose-200 bg-rose-50/40"
+                                  : "border-border bg-background/40"
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold">{it.item}</p>
+                                  {it.group && (
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                      {it.group}
+                                    </p>
+                                  )}
+                                  {it.note && (
+                                    <p className="mt-1 text-xs text-muted-foreground">{it.note}</p>
+                                  )}
+                                </div>
+                                <span
+                                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                    it.flagged
+                                      ? "bg-danger-soft text-danger"
+                                      : "bg-success-soft text-success"
+                                  }`}
+                                >
+                                  {it.flagged ? (
+                                    <AlertTriangle className="h-3 w-3" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3 w-3" />
+                                  )}
+                                  {it.status}
+                                </span>
+                              </div>
+                              {it.photo && (
+                                <a
+                                  href={it.photo}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 block overflow-hidden rounded-lg border border-border"
+                                >
+                                  <img
+                                    src={it.photo}
+                                    alt={it.item}
+                                    className="max-h-64 w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                </a>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {r.comment && (
+                        <div className="mt-3 rounded-xl border border-border bg-muted/30 p-3">
+                          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <MessageSquare className="h-3.5 w-3.5" /> Notes
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm">{r.comment}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </section>
               );
             })}
           </div>
         )}
+
 
         <p className="mt-8 text-center text-[11px] text-muted-foreground">
           This is a read-only snapshot shared by the kitchen team.
