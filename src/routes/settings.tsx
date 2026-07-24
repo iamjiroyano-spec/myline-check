@@ -132,6 +132,11 @@ function SettingsPage() {
           <TabPill active={tab === "containers"} onClick={() => setTab("containers")} icon={<Package className="h-4 w-4" />}>
             Container
           </TabPill>
+          {isAdmin && (
+            <TabPill active={tab === "access"} onClick={() => setTab("access")} icon={<ShieldCheck className="h-4 w-4" />}>
+              Access
+            </TabPill>
+          )}
         </div>
 
         {tab === "branding" && <BrandingPanel />}
