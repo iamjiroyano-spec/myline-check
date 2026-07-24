@@ -435,7 +435,6 @@ function ShiftRow({
               sh.stations.map((station) => (
                 <StationRow
                   key={station.name}
-                  shiftKey={`${sh.date}:${sh.slot}`}
                   station={station}
                   date={sh.date}
                   slot={sh.slot}
