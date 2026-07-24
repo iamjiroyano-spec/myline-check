@@ -175,7 +175,7 @@ function SectionPage() {
   const [editMode, setEditMode] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
-  const [viewer, setViewer] = useState<{ group: string; name: string; photo: string } | null>(null);
+  const [viewer, setViewer] = useState<{ group: string; name: string; occ: number; photo: string } | null>(null);
   const viewerFileRef = useRef<HTMLInputElement | null>(null);
   const [temps, setTemps] = useState<Record<string, string>>({});
   const [tempUnit, setTempUnitState] = useState<"F" | "C">(() => {
@@ -287,23 +287,30 @@ function SectionPage() {
   const slot: Slot = shell.shift;
   const STATUSES = getEffectiveStatuses();
   const allItems = struct.flatMap((c) => c.items);
-  const allCatItems = struct.flatMap((c) =>
-    c.items.map((i) => ({ group: c.group, name: i.name })),
-  );
+  // Assign each item a per-category occurrence index so duplicates within a
+  // category (or the same name appearing twice) get independent entries.
+  const allCatItems = struct.flatMap((c) => {
+    const seen = new Map<string, number>();
+    return c.items.map((i) => {
+      const occ = seen.get(i.name) ?? 0;
+      seen.set(i.name, occ + 1);
+      return { group: c.group, name: i.name, occ };
+    });
+  });
   const total = allItems.length;
   const done = allCatItems.filter(
-    (ci) => readEntry(state, ci.group, ci.name, slot)?.status,
+    (ci) => readEntry(state, ci.group, ci.name, slot, ci.occ)?.status,
   ).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   const missingNotes = allCatItems.filter((ci) => {
-    const e = readEntry(state, ci.group, ci.name, slot);
+    const e = readEntry(state, ci.group, ci.name, slot, ci.occ);
     return e?.status && FLAG_STATUSES.has(e.status) && !e.note?.trim();
   });
   const canSave = missingNotes.length === 0;
 
-  const setEntry = (group: string, item: string, patch: Partial<Entry>) => {
-    const k = entryKey(group, item);
+  const setEntry = (group: string, item: string, occ: number, patch: Partial<Entry>) => {
+    const k = entryKey(group, item, occ);
     setState((prev) => ({
       ...prev,
       entries: {
@@ -319,16 +326,16 @@ function SectionPage() {
   };
 
 
-  const toggleCheck = (group: string, item: string) => {
-    const cur = readEntry(state, group, item, slot)?.status;
-    setEntry(group, item, { status: cur === "OK" ? "" : "OK" });
+  const toggleCheck = (group: string, item: string, occ: number) => {
+    const cur = readEntry(state, group, item, slot, occ)?.status;
+    setEntry(group, item, occ, { status: cur === "OK" ? "" : "OK" });
   };
 
   const markAllOK = () => {
     setState((prev) => {
       const entries = { ...prev.entries };
       for (const ci of allCatItems) {
-        const k = entryKey(ci.group, ci.name);
+        const k = entryKey(ci.group, ci.name, ci.occ);
         entries[k] = {
           op: entries[k]?.op ?? emptyEntry(),
           mid: entries[k]?.mid ?? emptyEntry(),
@@ -344,7 +351,7 @@ function SectionPage() {
     setState((prev) => {
       const entries = { ...prev.entries };
       for (const ci of allCatItems) {
-        const k = entryKey(ci.group, ci.name);
+        const k = entryKey(ci.group, ci.name, ci.occ);
         entries[k] = {
           op: entries[k]?.op ?? emptyEntry(),
           mid: entries[k]?.mid ?? emptyEntry(),
@@ -355,6 +362,7 @@ function SectionPage() {
       return { ...prev, entries };
     });
   };
+
 
   const saveCheck = () => {
     if (!canSave) return;
@@ -728,9 +736,15 @@ function SectionPage() {
       {!editMode &&
         struct
           .map((cat) => {
-            const visible = cat.items.filter((item) => {
+            const seen = new Map<string, number>();
+            const withOcc = cat.items.map((item) => {
+              const occ = seen.get(item.name) ?? 0;
+              seen.set(item.name, occ + 1);
+              return { item, occ };
+            });
+            const visible = withOcc.filter(({ item, occ }) => {
               if (!flaggedOnly) return true;
-              const s = readEntry(state, cat.group, item.name, slot)?.status;
+              const s = readEntry(state, cat.group, item.name, slot, occ)?.status;
               return !!s && FLAG_STATUSES.has(s);
             });
             return [cat, visible] as const;
@@ -769,8 +783,8 @@ function SectionPage() {
               </div>
 
               <div className="space-y-2">
-                {items.map((item) => {
-                  const e = readEntry(state, cat.group, item.name, slot);
+                {items.map(({ item, occ }) => {
+                  const e = readEntry(state, cat.group, item.name, slot, occ);
                   const status = e?.status ?? "";
                   const checked = !!status && OK_STATUSES.has(status);
                   const flagged = status && FLAG_STATUSES.has(status);
@@ -779,14 +793,14 @@ function SectionPage() {
                   const noteMissing = flagged && !e?.note?.trim();
                   return (
                     <div
-                      key={item.name}
+                      key={`${item.name}#${occ}`}
                       className={`rounded-2xl border bg-card transition ${
                         noteMissing ? "border-rose-400 ring-1 ring-rose-200" : flagged ? "border-rose-200" : "border-border"
                       }`}
                     >
                       <div className="flex items-center gap-3 px-3 py-2.5">
                       <button
-                        onClick={() => toggleCheck(cat.group, item.name)}
+                        onClick={() => toggleCheck(cat.group, item.name, occ)}
                         aria-label={checked ? "Uncheck item" : "Mark item OK"}
                         className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
                           checked
@@ -828,7 +842,7 @@ function SectionPage() {
                       <div className="relative">
                         <select
                           value={status}
-                          onChange={(ev) => setEntry(cat.group, item.name, { status: ev.target.value })}
+                          onChange={(ev) => setEntry(cat.group, item.name, occ, { status: ev.target.value })}
                           className={`appearance-none rounded-md border px-2.5 py-1 pr-6 text-[11px] font-semibold uppercase tracking-wide ${
                             status
                               ? STATUS_STYLES[status] ?? "border-border bg-card"
@@ -875,7 +889,7 @@ function SectionPage() {
                             const reader = new FileReader();
                             reader.onload = () => {
                               const dataUrl = typeof reader.result === "string" ? reader.result : "";
-                              if (dataUrl) setEntry(cat.group, item.name, { photo: dataUrl });
+                              if (dataUrl) setEntry(cat.group, item.name, occ, { photo: dataUrl });
                             };
                             reader.readAsDataURL(file);
                           }}
@@ -884,7 +898,7 @@ function SectionPage() {
                       {e?.photo && (
                         <button
                           type="button"
-                          onClick={() => setViewer({ group: cat.group, name: item.name, photo: e.photo! })}
+                          onClick={() => setViewer({ group: cat.group, name: item.name, occ, photo: e.photo! })}
                           className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
                           title="View photo"
                           aria-label={`View photo for ${item.name}`}
@@ -907,7 +921,7 @@ function SectionPage() {
                           </div>
                           <textarea
                             value={e?.note ?? ""}
-                            onChange={(ev) => setEntry(cat.group, item.name, { note: ev.target.value })}
+                            onChange={(ev) => setEntry(cat.group, item.name, occ, { note: ev.target.value })}
                             placeholder={`Describe the issue (${status})…`}
                             rows={2}
                             className={`w-full resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-foreground/40 ${
@@ -990,7 +1004,7 @@ function SectionPage() {
                   reader.onload = () => {
                     const dataUrl = typeof reader.result === "string" ? reader.result : "";
                     if (dataUrl) {
-                      setEntry(viewer.group, viewer.name, { photo: dataUrl });
+                      setEntry(viewer.group, viewer.name, viewer.occ, { photo: dataUrl });
                       setViewer({ ...viewer, photo: dataUrl });
                     }
                   };
@@ -1009,7 +1023,7 @@ function SectionPage() {
                 type="button"
                 onClick={() => {
                   if (confirm("Remove this photo?")) {
-                    setEntry(viewer.group, viewer.name, { photo: undefined });
+                    setEntry(viewer.group, viewer.name, viewer.occ, { photo: undefined });
                     setViewer(null);
                   }
                 }}

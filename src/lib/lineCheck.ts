@@ -91,13 +91,17 @@ export function effectiveCategorizedItems(
 }
 
 /** Compound entry key so items with the same display name in different
- *  categories don't share status. */
-export function entryKey(group: string, itemName: string) {
-  return `${group}::${itemName}`;
+ *  categories don't share status. When multiple items in the same category
+ *  share a name, `occurrence` disambiguates them (0 = first, 1 = second, …).
+ *  Occurrence 0 keeps the historical key shape for backward compat. */
+export function entryKey(group: string, itemName: string, occurrence = 0) {
+  return occurrence > 0
+    ? `${group}::${itemName}#${occurrence}`
+    : `${group}::${itemName}`;
 }
 
-/** Reads an entry using the compound category+name key. The legacy
- *  bare-name fallback was removed because it caused status mirroring
+/** Reads an entry using the compound category+name(+occurrence) key. The
+ *  legacy bare-name fallback was removed because it caused status mirroring
  *  across categories (and, for shared item names, across stations) whenever
  *  older data was still present in storage. */
 export function readEntry(
@@ -105,9 +109,11 @@ export function readEntry(
   group: string,
   itemName: string,
   slot: Slot,
+  occurrence = 0,
 ): Entry | undefined {
-  return state.entries[entryKey(group, itemName)]?.[slot];
+  return state.entries[entryKey(group, itemName, occurrence)]?.[slot];
 }
+
 
 export const FLAG_STATUSES = new Set([
   "ABOUT TO EXPIRE",
@@ -195,10 +201,13 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
     let secFlagged = 0;
     const stationItems: ShiftHistoryItem[] = [];
     for (const cat of cats) {
+      const seen = new Map<string, number>();
       for (const item of cat.items) {
+        const occ = seen.get(item.name) ?? 0;
+        seen.set(item.name, occ + 1);
         totalItems++;
         secTotal++;
-        const e = readEntry(state, cat.group, item.name, slot);
+        const e = readEntry(state, cat.group, item.name, slot, occ);
         if (e?.status) {
           anyTouched = true;
           checkedItems++;
@@ -359,9 +368,12 @@ export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
   let flagged = 0;
   let total = 0;
   for (const cat of cats) {
+    const seen = new Map<string, number>();
     for (const item of cat.items) {
+      const occ = seen.get(item.name) ?? 0;
+      seen.set(item.name, occ + 1);
       total++;
-      const e = readEntry(state, cat.group, item.name, slot);
+      const e = readEntry(state, cat.group, item.name, slot, occ);
       if (e?.status) done++;
       if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
     }
@@ -381,8 +393,11 @@ export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     for (const cat of effectiveCategorizedItems(sec.name)) {
+      const seen = new Map<string, number>();
       for (const item of cat.items) {
-        const e = readEntry(state, cat.group, item.name, slot);
+        const occ = seen.get(item.name) ?? 0;
+        seen.set(item.name, occ + 1);
+        const e = readEntry(state, cat.group, item.name, slot, occ);
         if (e?.status && FLAG_STATUSES.has(e.status)) {
           rows.push({ section: sec.name, item: item.name, status: e.status, slot });
         }
@@ -447,13 +462,16 @@ export function dayHistory(date: string): DayHistory {
     let allDone = true;
     let secTotal = 0;
     for (const cat of cats) {
+      const seen = new Map<string, number>();
       for (const item of cat.items) {
+        const occ = seen.get(item.name) ?? 0;
+        seen.set(item.name, occ + 1);
         totalItems++;
         secTotal++;
         const slots: Slot[] = getShifts().map((s) => s.id);
         let itemDoneAnyShift = false;
         for (const slot of slots) {
-          const e = readEntry(state, cat.group, item.name, slot);
+          const e = readEntry(state, cat.group, item.name, slot, occ);
           if (e?.status) {
             anyTouched = true;
             itemDoneAnyShift = true;
