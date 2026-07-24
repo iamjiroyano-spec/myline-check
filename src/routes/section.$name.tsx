@@ -793,7 +793,7 @@ function SectionPage() {
                   const noteMissing = flagged && !e?.note?.trim();
                   return (
                     <div
-                      key={item.name}
+                      key={`${item.name}#${occ}`}
                       className={`rounded-2xl border bg-card transition ${
                         noteMissing ? "border-rose-400 ring-1 ring-rose-200" : flagged ? "border-rose-200" : "border-border"
                       }`}
