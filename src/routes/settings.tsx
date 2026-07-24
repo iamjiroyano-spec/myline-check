@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useShellState, SECTION_ICONS } from "@/components/AppShell";
 import { SECTIONS, STAFF, STATUSES, getShifts, saveShifts, type Slot, type ShiftDef } from "@/lib/lineCheck";
+import { supabase } from "@/integrations/supabase/client";
+import { ADMIN_EMAIL, isAdminEmail } from "@/lib/allowlist";
 import {
   ArrowLeft,
   Settings as SettingsIcon,
@@ -19,6 +21,7 @@ import {
   Image as ImageIcon,
   Upload,
   Pencil,
+  ShieldCheck,
 } from "lucide-react";
 
 
