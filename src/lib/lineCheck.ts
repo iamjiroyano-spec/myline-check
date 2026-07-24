@@ -112,7 +112,7 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let flagged = 0;
   let totalItems = 0;
   let checkedItems = 0;
-  for (const sec of SECTIONS) {
+  for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     const items = effectiveItems(sec.name);
     let anyTouched = false;
