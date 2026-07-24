@@ -355,9 +355,19 @@ function ThemeToggle() {
   const [isDark, setIsDark] = useState(false);
   const [preset, setPreset] = useState("terracotta");
   const [open, setOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [customSwatch, setCustomSwatch] = useState<[string, string, string]>([
+    "#c4654a",
+    "#faf8f5",
+    "#87a878",
+  ]);
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
     setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
+    import("@/lib/customTheme").then(({ loadCustomTheme }) => {
+      const c = loadCustomTheme();
+      setCustomSwatch([c.primary, c.background, c.accent]);
+    });
   }, []);
   useEffect(() => {
     if (!open) return;
@@ -378,11 +388,15 @@ function ThemeToggle() {
       localStorage.setItem("linecheck:theme", next ? "dark" : "light");
     } catch {}
   };
-  const pickPreset = (id: string) => {
+  const pickPreset = async (id: string) => {
     setPreset(id);
     const root = document.documentElement;
     if (id === "terracotta") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", id);
+    if (id === "custom") {
+      const { loadCustomTheme, saveCustomTheme } = await import("@/lib/customTheme");
+      saveCustomTheme(loadCustomTheme());
+    }
     try {
       localStorage.setItem("linecheck:theme-preset", id);
     } catch {}
@@ -406,7 +420,7 @@ function ThemeToggle() {
         </button>
       </div>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+        <div className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Theme
           </p>
@@ -427,9 +441,274 @@ function ThemeToggle() {
                 </button>
               </li>
             ))}
+            <li>
+              <button
+                onClick={() => pickPreset("custom")}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="flex h-4 w-8 overflow-hidden rounded-full ring-1 ring-border">
+                  {customSwatch.map((c, i) => (
+                    <span key={i} className="flex-1" style={{ background: c }} />
+                  ))}
+                </span>
+                <span className="flex-1 truncate">Custom</span>
+                {preset === "custom" && <Check className="h-3.5 w-3.5 text-primary" />}
+              </button>
+            </li>
           </ul>
+          <div className="border-t border-border">
+            <button
+              onClick={() => {
+                setOpen(false);
+                setEditorOpen(true);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-primary hover:bg-accent"
+            >
+              <Palette className="h-3.5 w-3.5" />
+              Customize colors…
+            </button>
+          </div>
         </div>
       )}
+      {editorOpen && (
+        <CustomThemeEditor
+          onClose={() => setEditorOpen(false)}
+          onSaved={(c) => {
+            setCustomSwatch([c.primary, c.background, c.accent]);
+            setPreset("custom");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CustomThemeEditor({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved: (c: { primary: string; background: string; accent: string }) => void;
+}) {
+  const [primary, setPrimary] = useState("#c4654a");
+  const [background, setBackground] = useState("#faf8f5");
+  const [accent, setAccent] = useState("#87a878");
+  const [ready, setReady] = useState(false);
+  const [ratios, setRatios] = useState({ primary: 0, accent: 0, text: 0 });
+
+  useEffect(() => {
+    import("@/lib/customTheme").then(({ loadCustomTheme }) => {
+      const c = loadCustomTheme();
+      setPrimary(c.primary);
+      setBackground(c.background);
+      setAccent(c.accent);
+      setReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    import("@/lib/customTheme").then(({ contrastRatio, readableOn }) => {
+      setRatios({
+        primary: contrastRatio(readableOn(primary), primary),
+        accent: contrastRatio(readableOn(accent), accent),
+        text: contrastRatio(readableOn(background), background),
+      });
+    });
+  }, [primary, background, accent, ready]);
+
+  const save = async () => {
+    const { saveCustomTheme } = await import("@/lib/customTheme");
+    const c = { primary, background, accent };
+    saveCustomTheme(c);
+    document.documentElement.setAttribute("data-theme", "custom");
+    try {
+      localStorage.setItem("linecheck:theme-preset", "custom");
+    } catch {}
+    onSaved(c);
+    onClose();
+  };
+
+  const reset = () => {
+    setPrimary("#c4654a");
+    setBackground("#faf8f5");
+    setAccent("#87a878");
+  };
+
+  const badge = (r: number) => {
+    if (r >= 7) return { label: "AAA", cls: "bg-sage/20 text-sage-deep" };
+    if (r >= 4.5) return { label: "AA", cls: "bg-sage/15 text-sage-deep" };
+    if (r >= 3) return { label: "AA Large", cls: "bg-accent text-accent-foreground" };
+    return { label: "Low", cls: "bg-destructive/15 text-destructive" };
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Custom theme editor"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h2 className="text-sm font-bold tracking-tight">Custom theme</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+          >
+            Close
+          </button>
+        </div>
+        <div className="space-y-4 px-5 py-4">
+          <ColorField
+            label="Primary"
+            hint="Buttons, links, active states"
+            value={primary}
+            onChange={setPrimary}
+            ratio={ratios.primary}
+            badge={badge}
+          />
+          <ColorField
+            label="Background"
+            hint="Page canvas — text is chosen automatically"
+            value={background}
+            onChange={setBackground}
+            ratio={ratios.text}
+            badge={badge}
+          />
+          <ColorField
+            label="Accent"
+            hint="Highlights and secondary chips"
+            value={accent}
+            onChange={setAccent}
+            ratio={ratios.accent}
+            badge={badge}
+          />
+
+          <div
+            className="rounded-xl border border-border p-3"
+            style={{ background }}
+          >
+            <p className="text-xs font-semibold" style={{ color: primary }}>
+              Live preview
+            </p>
+            <p className="mt-1 text-sm" style={{ color: readableTextPreview(background) }}>
+              The quick brown fox jumps over the lazy dog.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <span
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                style={{ background: primary, color: readableTextPreview(primary) }}
+              >
+                Primary
+              </span>
+              <span
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                style={{ background: accent, color: readableTextPreview(accent) }}
+              >
+                Accent
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Text and icon colors are auto-derived from each color's luminance and forced to at
+            least WCAG AA (4.5:1) so labels stay readable no matter what you pick.
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/40 px-5 py-3">
+          <button
+            onClick={reset}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+          >
+            Reset
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              className="rounded-md bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+            >
+              Apply theme
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function readableTextPreview(bg: string) {
+  // Duplicate of readableOn to keep this component sync during preview.
+  const h = bg.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const num = parseInt(n || "000000", 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  const s = [r, g, b].map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  });
+  const L = 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2];
+  return L > 0.5 ? "#0f172a" : "#f8fafc";
+}
+
+function ColorField({
+  label,
+  hint,
+  value,
+  onChange,
+  ratio,
+  badge,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (v: string) => void;
+  ratio: number;
+  badge: (r: number) => { label: string; cls: string };
+}) {
+  const b = badge(ratio);
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-semibold text-foreground">{label}</label>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${b.cls}`}>
+          {b.label} · {ratio.toFixed(1)}:1
+        </span>
+      </div>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-12 cursor-pointer rounded-md border border-border bg-transparent"
+          aria-label={`${label} color`}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) onChange(v);
+            else onChange(v);
+          }}
+          className="w-28 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs uppercase outline-none focus:ring-2 focus:ring-ring"
+          aria-label={`${label} hex`}
+        />
+      </div>
     </div>
   );
 }
