@@ -510,6 +510,11 @@ function StationsPanel() {
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
+              {isRenaming && renameError && (
+                <p role="alert" className="border-t border-border px-4 py-2 text-sm font-medium text-danger">
+                  {renameError}
+                </p>
+              )}
               {open && (
                 <div className="border-t border-border px-12 py-3">
                   {st.items.length === 0 ? (
