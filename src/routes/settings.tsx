@@ -409,20 +409,31 @@ function StationsPanel() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="New station name..."
-          className="flex-1 rounded-full border border-border bg-card px-5 py-3 text-sm outline-none focus:border-foreground/30"
-        />
-        <button
-          onClick={add}
-          className="flex items-center gap-1.5 rounded-full bg-muted-foreground/80 px-5 py-3 text-sm font-semibold text-background hover:bg-foreground"
-        >
-          <Plus className="h-4 w-4" /> Add
-        </button>
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (addError) setAddError(null);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="New station name..."
+            aria-invalid={!!addError}
+            className={`flex-1 rounded-full border bg-card px-5 py-3 text-sm outline-none focus:border-foreground/30 ${addError ? "border-danger" : "border-border"}`}
+          />
+          <button
+            onClick={add}
+            className="flex items-center gap-1.5 rounded-full bg-muted-foreground/80 px-5 py-3 text-sm font-semibold text-background hover:bg-foreground"
+          >
+            <Plus className="h-4 w-4" /> Add
+          </button>
+        </div>
+        {addError && (
+          <p role="alert" className="mt-2 px-2 text-sm font-medium text-danger">
+            {addError}
+          </p>
+        )}
       </div>
 
       <ul className="space-y-2">
