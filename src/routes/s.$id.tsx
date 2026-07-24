@@ -144,9 +144,11 @@ function SharedView() {
 
       <main className="mx-auto max-w-3xl px-5 py-8">
         <h1 className="text-2xl font-black tracking-tight">
+          {p.scope === "station" && p.station ? `${p.station} · ` : ""}
           {SLOT_LABEL[slot]} Shift · {p.date}
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
+          {p.scope === "station" ? "Single-station snapshot · " : ""}
           Last updated {new Date(data.updated_at).toLocaleString()}
         </p>
 
@@ -237,6 +239,20 @@ function SharedView() {
                             {it.status}
                           </span>
                         </div>
+                        {it.photo && (
+                          <a
+                            href={it.photo}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block"
+                          >
+                            <img
+                              src={it.photo}
+                              alt={`Photo for ${it.item}`}
+                              className="h-16 w-16 rounded-lg border border-border object-cover"
+                            />
+                          </a>
+                        )}
                       </li>
                     ))}
                   </ul>
