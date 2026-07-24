@@ -17,6 +17,9 @@ import {
   Calendar,
   Clock,
   Loader2,
+  ChevronDown,
+  Thermometer,
+  MessageSquare,
 } from "lucide-react";
 
 export const Route = createFileRoute("/s/$id")({
