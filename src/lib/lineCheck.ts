@@ -200,15 +200,19 @@ export function defaultShift(): Slot {
 
 export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
   const state = loadSection(name, date);
-  const items = effectiveItems(name);
+  const cats = effectiveCategorizedItems(name);
   let done = 0;
   let flagged = 0;
-  for (const item of items) {
-    const e = state.entries[item.name]?.[slot];
-    if (e?.status) done++;
-    if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
+  let total = 0;
+  for (const cat of cats) {
+    for (const item of cat.items) {
+      total++;
+      const e = readEntry(state, cat.group, item.name, slot);
+      if (e?.status) done++;
+      if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
+    }
   }
-  return { done, total: items.length, flagged };
+  return { done, total, flagged };
 }
 
 export type FlaggedRow = {
