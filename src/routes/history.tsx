@@ -475,10 +475,6 @@ function StationRow({
   onShare: () => void;
   copied: boolean;
 }) {
-  const pct = station.totalItems
-    ? Math.round((station.checkedItems / station.totalItems) * 100)
-    : 0;
-
   return (
     <div className="rounded-2xl border border-border bg-muted/30">
       <div className="flex items-center gap-2 pr-2">
@@ -498,20 +494,6 @@ function StationRow({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold tracking-tight">{station.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {station.checkedItems}/{station.totalItems} items · {station.flagged} flagged
-            </p>
-          </div>
-          <div className="hidden w-24 sm:block">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${pct}%`, background: "var(--gradient-readiness)" }}
-              />
-            </div>
-            <p className="mt-1 text-right text-[10px] font-semibold tabular-nums text-muted-foreground">
-              {pct}%
-            </p>
           </div>
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
