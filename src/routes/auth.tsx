@@ -23,6 +23,15 @@ function AuthPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    try {
+      const denied = sessionStorage.getItem("linecheck:auth:denied");
+      if (denied) {
+        setMsg(
+          `Access denied for ${denied}. Only accounts approved by the admin can sign in.`,
+        );
+        sessionStorage.removeItem("linecheck:auth:denied");
+      }
+    } catch {}
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/" });
     });
