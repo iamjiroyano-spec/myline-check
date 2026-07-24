@@ -76,7 +76,7 @@ function SharedView() {
     if (!data) return [];
     const slot: Slot = data.payload.shift;
 
-    type Item = { item: string; status: string; note: string; flagged: boolean };
+    type Item = { item: string; status: string; note: string; photo?: string; flagged: boolean };
     const out: { section: string; items: Item[] }[] = [];
     for (const s of data.payload.sections) {
       const st = s.state;
@@ -90,6 +90,7 @@ function SharedView() {
           item: itemName,
           status: e.status,
           note: e.note || "",
+          photo: e.photo,
           flagged: FLAG_STATUSES.has(e.status),
         });
       }
