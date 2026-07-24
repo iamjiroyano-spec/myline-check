@@ -162,7 +162,12 @@ function SectionPage() {
     () => `linecheck:temps:${name}:${shell.date}:${shell.shift}`,
     [name, shell.date, shell.shift],
   );
+  const commentKey = useMemo(
+    () => `linecheck:section-comment:${name}:${shell.date}:${shell.shift}`,
+    [name, shell.date, shell.shift],
+  );
   const [state, setState] = useState<SectionState>(() => loadSection(name, shell.date));
+  const [comment, setComment] = useState<string>("");
   const [editMode, setEditMode] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
@@ -217,6 +222,23 @@ function SectionPage() {
       setTemps({});
     }
   }, [tempKey]);
+
+  useEffect(() => {
+    try {
+      setComment(lsStore.getItem(commentKey) ?? "");
+    } catch {
+      setComment("");
+    }
+  }, [commentKey]);
+
+  const onCommentChange = (value: string) => {
+    setComment(value);
+    try {
+      if (value) lsStore.setItem(commentKey, value);
+      else lsStore.removeItem(commentKey);
+      window.dispatchEvent(new Event("linecheck:update"));
+    } catch {}
+  };
 
   const setTemp = (group: string, value: string) => {
     setTemps((prev) => {
@@ -862,11 +884,60 @@ function SectionPage() {
               </div>
             </section>
           ))}
+
+      {!editMode && (
+        <section className="mt-8">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Station Comment / Feedback
+            </h3>
+            <span className="text-[10px] text-muted-foreground">
+              Auto-saved · {slot.toUpperCase()}
+            </span>
+          </div>
+          <AutoGrowTextarea
+            value={comment}
+            onChange={onCommentChange}
+            placeholder={`Add a comment or feedback for ${name}…`}
+          />
+        </section>
+      )}
     </AppShell>
   );
 }
 
+// ---------- Auto-growing textarea ----------
+
+function AutoGrowTextarea({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(ev) => onChange(ev.target.value)}
+      placeholder={placeholder}
+      rows={3}
+      className="w-full resize-none overflow-hidden rounded-2xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-foreground/40"
+    />
+  );
+}
+
 // ---------- Drag-and-drop edit UI ----------
+
 
 type EditDraftDndProps = {
   draft: EditCategory[];
