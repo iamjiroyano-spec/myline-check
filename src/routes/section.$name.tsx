@@ -172,6 +172,8 @@ function SectionPage() {
   const [editMode, setEditMode] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [viewer, setViewer] = useState<{ group: string; name: string; photo: string } | null>(null);
+  const viewerFileRef = useRef<HTMLInputElement | null>(null);
   const [temps, setTemps] = useState<Record<string, string>>({});
   const [tempUnit, setTempUnitState] = useState<"F" | "C">(() => {
     try {
@@ -877,30 +879,15 @@ function SectionPage() {
                         />
                       </label>
                       {e?.photo && (
-                        <div className="relative">
-                          <a
-                            href={e.photo}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
-                            title="View photo"
-                          >
-                            <img src={e.photo} alt="" className="h-full w-full object-cover" />
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm("Remove this photo?")) {
-                                setEntry(cat.group, item.name, { photo: undefined });
-                              }
-                            }}
-                            aria-label={`Remove photo for ${item.name}`}
-                            title="Remove photo"
-                            className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-danger-soft hover:text-danger"
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setViewer({ group: cat.group, name: item.name, photo: e.photo! })}
+                          className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
+                          title="View photo"
+                          aria-label={`View photo for ${item.name}`}
+                        >
+                          <img src={e.photo} alt="" className="h-full w-full object-cover" />
+                        </button>
                       )}
                       </div>
                       {flagged && (
@@ -950,6 +937,87 @@ function SectionPage() {
             placeholder={`Add a comment or feedback for ${name}…`}
           />
         </section>
+      )}
+      {viewer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setViewer(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Photo for ${viewer.name}`}
+        >
+          <div
+            className="relative flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{viewer.name}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{viewer.group}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewer(null)}
+                className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Close photo viewer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-black/40 p-2">
+              <img src={viewer.photo} alt={viewer.name} className="mx-auto max-h-[70vh] w-auto object-contain" />
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3">
+              <input
+                ref={viewerFileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(ev) => {
+                  const file = ev.target.files?.[0];
+                  ev.target.value = "";
+                  if (!file || !viewer) return;
+                  const MAX = 8 * 1024 * 1024;
+                  if (file.size > MAX) {
+                    alert("Image too large (max 8MB).");
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const dataUrl = typeof reader.result === "string" ? reader.result : "";
+                    if (dataUrl) {
+                      setEntry(viewer.group, viewer.name, { photo: dataUrl });
+                      setViewer({ ...viewer, photo: dataUrl });
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => viewerFileRef.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                Retake / Replace
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Remove this photo?")) {
+                    setEntry(viewer.group, viewer.name, { photo: undefined });
+                    setViewer(null);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-danger/40 bg-danger-soft px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppShell>
   );
