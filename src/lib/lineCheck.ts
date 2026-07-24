@@ -186,7 +186,7 @@ export type FlaggedRow = {
 
 export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   const rows: FlaggedRow[] = [];
-  for (const sec of SECTIONS) {
+  for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     for (const item of effectiveItems(sec.name)) {
       const e = state.entries[item.name]?.[slot];
