@@ -33,7 +33,7 @@ import {
   LogOut,
   Moon,
   Sun,
-  Palette,
+  Monitor,
   Check,
 } from "lucide-react";
 
