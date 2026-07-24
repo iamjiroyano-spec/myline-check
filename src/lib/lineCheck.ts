@@ -190,11 +190,45 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   };
 }
 
-export const SLOT_LABEL: Record<Slot, string> = {
+const DEFAULT_SLOT_LABELS: Record<Slot, string> = {
   op: "Opening",
   mid: "Mid",
   cl: "Closing",
 };
+
+export const SHIFT_LABELS_KEY = "linecheck:settings:shiftLabels";
+
+export function getShiftLabels(): Record<Slot, string> {
+  try {
+    const raw = lsStore.getItem(SHIFT_LABELS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<Record<Slot, string>>;
+      return {
+        op: (typeof p.op === "string" && p.op.trim()) || DEFAULT_SLOT_LABELS.op,
+        mid: (typeof p.mid === "string" && p.mid.trim()) || DEFAULT_SLOT_LABELS.mid,
+        cl: (typeof p.cl === "string" && p.cl.trim()) || DEFAULT_SLOT_LABELS.cl,
+      };
+    }
+  } catch {}
+  return { ...DEFAULT_SLOT_LABELS };
+}
+
+export function getShiftLabel(slot: Slot): string {
+  return getShiftLabels()[slot];
+}
+
+export const SLOT_LABEL = new Proxy({} as Record<Slot, string>, {
+  get(_t, prop: string) {
+    return getShiftLabels()[prop as Slot];
+  },
+  ownKeys() {
+    return ["op", "mid", "cl"];
+  },
+  getOwnPropertyDescriptor() {
+    return { enumerable: true, configurable: true };
+  },
+});
+
 
 export function loadSection(name: string, date = todayISO()): SectionState {
   try {
