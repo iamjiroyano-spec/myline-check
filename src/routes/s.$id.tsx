@@ -75,31 +75,67 @@ function SharedView() {
     };
   }, [id]);
 
+  const [openStations, setOpenStations] = useState<Record<string, boolean>>({});
+
   const grouped = useMemo(() => {
     if (!data) return [];
     const slot: Slot = data.payload.shift;
 
-    type Item = { item: string; status: string; note: string; flagged: boolean };
-    const out: { section: string; items: Item[] }[] = [];
+    type Item = {
+      item: string;
+      group: string;
+      status: string;
+      note: string;
+      photo?: string;
+      flagged: boolean;
+    };
+    const out: {
+      section: string;
+      items: Item[];
+      temps: { group: string; value: string }[];
+      tempUnit: "F" | "C";
+      comment: string;
+    }[] = [];
     for (const s of data.payload.sections) {
       const st = s.state;
       const items: Item[] = [];
       for (const [key, byslot] of Object.entries(st.entries ?? {})) {
         const e = byslot?.[slot];
         if (!e?.status) continue;
-        // Compound key: "group::item" — display only the item name.
+        const group = key.includes("::") ? key.split("::")[0] : "";
         const itemName = key.includes("::") ? key.split("::").slice(1).join("::") : key;
         items.push({
           item: itemName,
+          group,
           status: e.status,
           note: e.note || "",
+          photo: e.photo,
           flagged: FLAG_STATUSES.has(e.status),
         });
       }
-      if (items.length) out.push({ section: s.name, items });
+      const temps = Object.entries(s.temps ?? {})
+        .filter(([, v]) => v && String(v).trim().length > 0)
+        .map(([group, value]) => ({ group, value: String(value) }));
+      const comment = (s.comment || "").trim();
+      if (items.length || temps.length || comment) {
+        out.push({
+          section: s.name,
+          items,
+          temps,
+          tempUnit: s.tempUnit ?? "F",
+          comment,
+        });
+      }
     }
     return out;
   }, [data]);
+
+  const displayTemp = (rawF: string, unit: "F" | "C") => {
+    const n = Number(rawF);
+    if (!Number.isFinite(n)) return rawF;
+    if (unit === "F") return `${n}°F`;
+    return `${Math.round((((n - 32) * 5) / 9) * 10) / 10}°C`;
+  };
 
   if (loading) {
     return (
