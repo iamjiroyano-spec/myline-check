@@ -509,8 +509,8 @@ function StationRow({
             onShare();
           }}
           className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Copy share link"
-          title={copied ? "Link copied!" : "Copy share link"}
+          aria-label="Copy station share link"
+          title={copied ? "Link copied!" : "Copy station share link"}
         >
           {copied ? (
             <CheckCircle2 className="h-4 w-4 text-success" />
