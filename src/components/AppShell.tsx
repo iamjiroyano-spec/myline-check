@@ -471,18 +471,7 @@ function ThemeToggle() {
   );
 }
 
-      {editorOpen && (
-        <CustomThemeEditor
-          onClose={() => setEditorOpen(false)}
-          onSaved={(c) => {
-            setCustomSwatch([c.primary, c.background, c.accent]);
-            setPreset("custom");
-          }}
-        />
-      )}
-    </div>
-  );
-}
+
 
 function CustomThemeEditor({
   onClose,
