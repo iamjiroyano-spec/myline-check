@@ -32,7 +32,7 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
-type Tab = "branding" | "stations" | "team" | "statuses" | "shifts" | "shelves" | "containers";
+type Tab = "branding" | "stations" | "team" | "statuses" | "shifts" | "shelves" | "containers" | "access";
 
 const ICON_OPTIONS = Object.keys(SECTION_ICONS);
 
