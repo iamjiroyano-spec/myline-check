@@ -144,22 +144,26 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let checkedItems = 0;
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
-    const items = effectiveItems(sec.name);
+    const cats = effectiveCategorizedItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of items) {
-      totalItems++;
-      const e = state.entries[item.name]?.[slot];
-      if (e?.status) {
-        anyTouched = true;
-        checkedItems++;
-        if (FLAG_STATUSES.has(e.status)) flagged++;
-      } else {
-        allDone = false;
+    let secTotal = 0;
+    for (const cat of cats) {
+      for (const item of cat.items) {
+        totalItems++;
+        secTotal++;
+        const e = readEntry(state, cat.group, item.name, slot);
+        if (e?.status) {
+          anyTouched = true;
+          checkedItems++;
+          if (FLAG_STATUSES.has(e.status)) flagged++;
+        } else {
+          allDone = false;
+        }
       }
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && secTotal > 0) stationsComplete++;
   }
   return {
     date,
