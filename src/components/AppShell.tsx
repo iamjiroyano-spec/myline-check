@@ -330,7 +330,11 @@ function TopBar({
             aria-label="Shift"
           >
             {shifts.map((s) => (
-              <option key={s.id} value={s.id}>
+              <option
+                key={s.id}
+                value={s.id}
+                style={{ background: "var(--background)", color: "var(--foreground)" }}
+              >
                 {s.label}
               </option>
             ))}
