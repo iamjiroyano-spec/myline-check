@@ -1023,7 +1023,7 @@ function SectionPage() {
                 type="button"
                 onClick={() => {
                   if (confirm("Remove this photo?")) {
-                    setEntry(viewer.group, viewer.name, { photo: undefined });
+                    setEntry(viewer.group, viewer.name, viewer.occ, { photo: undefined });
                     setViewer(null);
                   }
                 }}
