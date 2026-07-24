@@ -268,7 +268,7 @@ function DayBlock({
 }: {
   date: string;
   shifts: ShiftHistory[];
-  onShare: (date: string, slot: Slot) => void;
+  onShare: (date: string, slot: Slot, station?: string) => void;
   copied: string | null;
   expandedShifts: Record<string, boolean>;
   setExpandedShifts: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
@@ -301,8 +301,8 @@ function DayBlock({
           <ShiftRow
             key={sh.slot}
             sh={sh}
-            onShare={() => onShare(date, sh.slot)}
-            copied={copied === `${date}:${sh.slot}`}
+            onShare={onShare}
+            copied={copied}
             expanded={!!expandedShifts[`${date}:${sh.slot}`]}
             onToggle={() =>
               setExpandedShifts((prev) => ({
