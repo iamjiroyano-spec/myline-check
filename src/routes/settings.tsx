@@ -344,6 +344,8 @@ function StationsPanel() {
     loadJSON(STATIONS_KEY, initial),
   );
   const [name, setName] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -355,34 +357,48 @@ function StationsPanel() {
   }, [stations]);
 
   const add = () => {
-    const n = name.trim();
-    if (!n) return;
+    const n = name.trim().toUpperCase();
+    if (!n) {
+      setAddError("Please enter a station name.");
+      return;
+    }
+    if (stations.some((s) => s.name.toUpperCase() === n)) {
+      setAddError(`A station named "${n}" already exists.`);
+      return;
+    }
     const used = new Set(stations.map((s) => s.icon));
     const nextIcon =
       ICON_OPTIONS.find((k) => !used.has(k)) ??
       ICON_OPTIONS[stations.length % ICON_OPTIONS.length] ??
       "Utensils";
-    setStations((s) => [{ name: n.toUpperCase(), icon: nextIcon, items: [] }, ...s]);
+    setStations((s) => [{ name: n, icon: nextIcon, items: [] }, ...s]);
     setName("");
+    setAddError(null);
   };
 
   const startRename = (idx: number) => {
     setRenamingIdx(idx);
     setRenameValue(stations[idx].name);
+    setRenameError(null);
   };
   const cancelRename = () => {
     setRenamingIdx(null);
     setRenameValue("");
+    setRenameError(null);
   };
   const commitRename = (idx: number) => {
     const oldName = stations[idx].name;
     const newName = renameValue.trim().toUpperCase();
-    if (!newName || newName === oldName) {
+    if (!newName) {
+      setRenameError("Station name cannot be empty.");
+      return;
+    }
+    if (newName === oldName) {
       cancelRename();
       return;
     }
-    if (stations.some((s, i) => i !== idx && s.name === newName)) {
-      alert(`A station named "${newName}" already exists.`);
+    if (stations.some((s, i) => i !== idx && s.name.toUpperCase() === newName)) {
+      setRenameError(`A station named "${newName}" already exists.`);
       return;
     }
     renameStationKeys(oldName, newName);
@@ -393,20 +409,31 @@ function StationsPanel() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="New station name..."
-          className="flex-1 rounded-full border border-border bg-card px-5 py-3 text-sm outline-none focus:border-foreground/30"
-        />
-        <button
-          onClick={add}
-          className="flex items-center gap-1.5 rounded-full bg-muted-foreground/80 px-5 py-3 text-sm font-semibold text-background hover:bg-foreground"
-        >
-          <Plus className="h-4 w-4" /> Add
-        </button>
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (addError) setAddError(null);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="New station name..."
+            aria-invalid={!!addError}
+            className={`flex-1 rounded-full border bg-card px-5 py-3 text-sm outline-none focus:border-foreground/30 ${addError ? "border-danger" : "border-border"}`}
+          />
+          <button
+            onClick={add}
+            className="flex items-center gap-1.5 rounded-full bg-muted-foreground/80 px-5 py-3 text-sm font-semibold text-background hover:bg-foreground"
+          >
+            <Plus className="h-4 w-4" /> Add
+          </button>
+        </div>
+        {addError && (
+          <p role="alert" className="mt-2 px-2 text-sm font-medium text-danger">
+            {addError}
+          </p>
+        )}
       </div>
 
       <ul className="space-y-2">
@@ -442,13 +469,17 @@ function StationsPanel() {
                   <input
                     autoFocus
                     value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
+                    onChange={(e) => {
+                      setRenameValue(e.target.value);
+                      if (renameError) setRenameError(null);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") commitRename(idx);
                       if (e.key === "Escape") cancelRename();
                     }}
                     onBlur={() => commitRename(idx)}
-                    className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm font-bold tracking-tight outline-none focus:border-foreground/40"
+                    aria-invalid={!!renameError}
+                    className={`min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-sm font-bold tracking-tight outline-none focus:border-foreground/40 ${renameError ? "border-danger" : "border-border"}`}
                   />
                 ) : (
                   <>
@@ -479,6 +510,11 @@ function StationsPanel() {
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
+              {isRenaming && renameError && (
+                <p role="alert" className="border-t border-border px-4 py-2 text-sm font-medium text-danger">
+                  {renameError}
+                </p>
+              )}
               {open && (
                 <div className="border-t border-border px-12 py-3">
                   {st.items.length === 0 ? (
