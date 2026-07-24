@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  getEffectiveSections,
+  SECTIONS,
   loadSection,
   loadMember,
   shiftHistory,
@@ -14,7 +14,6 @@ const slotSchema = z.string();
 const entrySchema = z.object({
   status: z.string().catch(""),
   note: z.string().catch(""),
-  photo: z.string().optional().catch(undefined),
 });
 
 const sectionStateSchema = z.object({
@@ -41,8 +40,6 @@ export const sharedShiftPayloadSchema = z.object({
   shift: slotSchema,
   member: z.string().catch(""),
   brand_name: z.string().catch("LUMA"),
-  scope: z.enum(["shift", "station"]).optional().catch("shift"),
-  station: z.string().optional().catch(undefined),
   summary: summarySchema,
   sections: z
     .array(z.object({ name: z.string(), state: sectionStateSchema }))
@@ -51,44 +48,18 @@ export const sharedShiftPayloadSchema = z.object({
 
 export type SharedShiftPayload = z.infer<typeof sharedShiftPayloadSchema>;
 
-function buildPayload(
-  date: string,
-  slot: Slot,
-  onlyStation?: string,
-): SharedShiftPayload {
-  const allSections = getEffectiveSections();
-  const filtered = onlyStation
-    ? allSections.filter((s) => s.name === onlyStation)
-    : allSections;
-  const sections = filtered.map((s) => ({
+function buildPayload(date: string, slot: Slot): SharedShiftPayload {
+  const sections = SECTIONS.map((s) => ({
     name: s.name,
     state: loadSection(s.name, date),
   }));
   const brand_name = lsStore.getItem("linecheck:settings:brand:name") || "LUMA";
-  const fullSummary = shiftHistory(date, slot);
-  const summary = onlyStation
-    ? (() => {
-        const st = fullSummary.stations.find((x) => x.name === onlyStation);
-        return {
-          date,
-          slot,
-          member: fullSummary.member,
-          stationsTouched: st ? 1 : 0,
-          stationsComplete: st?.complete ? 1 : 0,
-          totalItems: st?.totalItems ?? 0,
-          checkedItems: st?.checkedItems ?? 0,
-          flagged: st?.flagged ?? 0,
-        };
-      })()
-    : fullSummary;
   return {
     date,
     shift: slot,
     member: loadMember(date, slot),
     brand_name,
-    scope: onlyStation ? "station" : "shift",
-    station: onlyStation,
-    summary,
+    summary: shiftHistory(date, slot),
     sections,
   };
 }
@@ -96,21 +67,12 @@ function buildPayload(
 /**
  * Publish the current shift snapshot to the database and return a public URL.
  * Uses upsert on (owner_id, date, shift) so re-sharing keeps the same link.
- * Pass `station` to publish a single-station snapshot with its own stable link.
  */
-export async function publishSharedShift(
-  date: string,
-  slot: Slot,
-  station?: string,
-): Promise<string> {
+export async function publishSharedShift(date: string, slot: Slot): Promise<string> {
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userData.user) throw new Error("Sign in required to share");
   const owner_id = userData.user.id;
-  const payload = buildPayload(date, slot, station);
-
-  // Encode station scope into the shift key so each station gets a stable link
-  // distinct from the full-shift share.
-  const shiftKey = station ? `${slot}::station::${station}` : slot;
+  const payload = buildPayload(date, slot);
 
   const { data, error } = await supabase
     .from("shared_shifts")
@@ -118,7 +80,7 @@ export async function publishSharedShift(
       {
         owner_id,
         date,
-        shift: shiftKey,
+        shift: slot,
         member: payload.member || null,
         brand_name: payload.brand_name,
         payload: JSON.parse(JSON.stringify(payload)),
