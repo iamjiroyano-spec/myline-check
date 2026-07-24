@@ -378,7 +378,7 @@ function ThemeToggle() {
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [open]);
-  const toggleMode = () => {
+  const toggleMode = async () => {
     const next = !isDark;
     setIsDark(next);
     const root = document.documentElement;
