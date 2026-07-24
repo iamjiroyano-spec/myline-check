@@ -106,11 +106,11 @@ function HistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, station, shiftFilter]);
 
-  const share = async (date: string, slot: Slot) => {
-    const key = `${date}:${slot}`;
+  const share = async (date: string, slot: Slot, stationName?: string) => {
+    const key = stationName ? `${date}:${slot}:${stationName}` : `${date}:${slot}`;
     try {
       const { publishSharedShift } = await import("@/lib/share");
-      const url = await publishSharedShift(date, slot);
+      const url = await publishSharedShift(date, slot, stationName);
       try {
         await navigator.clipboard.writeText(url);
         setCopied(key);
