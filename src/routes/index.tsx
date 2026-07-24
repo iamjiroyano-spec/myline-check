@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, useShellState, SECTION_ICONS } from "@/components/AppShell";
 import {
-  SECTIONS,
+  getEffectiveSections,
   allFlagged,
   sectionProgress,
   type FlaggedRow,
