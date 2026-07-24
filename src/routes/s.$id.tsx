@@ -30,7 +30,7 @@ export const Route = createFileRoute("/s/$id")({
   component: SharedView,
 });
 
-type SharedSection = SharedShiftPayload["sections"][number]["state"];
+
 
 function SharedView() {
   const { id } = Route.useParams();
