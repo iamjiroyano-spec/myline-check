@@ -76,26 +76,25 @@ function SharedView() {
   const grouped = useMemo(() => {
     if (!data) return [];
     const slot: Slot = data.payload.shift;
-    const map = new Map<string, SharedSection>();
-    for (const s of data.payload.sections) map.set(s.name, s.state);
 
     type Item = { item: string; status: string; note: string; flagged: boolean };
     const out: { section: string; items: Item[] }[] = [];
-    for (const sec of SECTIONS) {
-      const st = map.get(sec.name);
-      if (!st) continue;
+    for (const s of data.payload.sections) {
+      const st = s.state;
       const items: Item[] = [];
-      for (const it of sec.items) {
-        const e = st.entries[it.name]?.[slot];
+      for (const [key, byslot] of Object.entries(st.entries ?? {})) {
+        const e = byslot?.[slot];
         if (!e?.status) continue;
+        // Compound key: "group::item" — display only the item name.
+        const itemName = key.includes("::") ? key.split("::").slice(1).join("::") : key;
         items.push({
-          item: it.name,
+          item: itemName,
           status: e.status,
           note: e.note || "",
           flagged: FLAG_STATUSES.has(e.status),
         });
       }
-      if (items.length) out.push({ section: sec.name, items });
+      if (items.length) out.push({ section: s.name, items });
     }
     return out;
   }, [data]);
