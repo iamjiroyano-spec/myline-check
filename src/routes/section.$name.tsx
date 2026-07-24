@@ -879,30 +879,15 @@ function SectionPage() {
                         />
                       </label>
                       {e?.photo && (
-                        <div className="relative">
-                          <a
-                            href={e.photo}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
-                            title="View photo"
-                          >
-                            <img src={e.photo} alt="" className="h-full w-full object-cover" />
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm("Remove this photo?")) {
-                                setEntry(cat.group, item.name, { photo: undefined });
-                              }
-                            }}
-                            aria-label={`Remove photo for ${item.name}`}
-                            title="Remove photo"
-                            className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-danger-soft hover:text-danger"
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setViewer({ group: cat.group, name: item.name, photo: e.photo! })}
+                          className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
+                          title="View photo"
+                          aria-label={`View photo for ${item.name}`}
+                        >
+                          <img src={e.photo} alt="" className="h-full w-full object-cover" />
+                        </button>
                       )}
                       </div>
                       {flagged && (
