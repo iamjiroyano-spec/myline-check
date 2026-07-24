@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  effectiveCategorizedItems,
   getEffectiveSections,
   loadSection,
   loadMember,
@@ -25,6 +26,11 @@ const sectionStateSchema = z.object({
   entries: z.record(z.string(), z.record(z.string(), entrySchema)).catch({}),
 });
 
+const categorySchema = z.object({
+  group: z.string().catch(""),
+  items: z.array(z.object({ name: z.string() })).catch([]),
+});
+
 const summarySchema = z.object({
   date: z.string().catch(""),
   slot: slotSchema,
@@ -47,6 +53,7 @@ export const sharedShiftPayloadSchema = z.object({
       z.object({
         name: z.string(),
         state: sectionStateSchema,
+        categories: z.array(categorySchema).catch([]),
         temps: z.record(z.string(), z.string()).catch({}),
         tempUnit: z.enum(["F", "C"]).catch("F"),
         comment: z.string().catch(""),
@@ -71,6 +78,7 @@ function buildPayload(date: string, slot: Slot): SharedShiftPayload {
     return {
       name: s.name,
       state: loadSection(s.name, date),
+      categories: effectiveCategorizedItems(s.name),
       temps,
       tempUnit: (tempUnit === "C" ? "C" : "F") as "F" | "C",
       comment,
