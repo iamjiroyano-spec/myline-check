@@ -145,7 +145,7 @@ function Sidebar({ date, shift }: { date: string; shift: Slot }) {
           </p>
         )}
         <ul className="space-y-0.5">
-          {SECTIONS.map((s) => {
+          {getEffectiveSections().map((s) => {
             const Icon = SECTION_ICONS[s.name] ?? Utensils;
             const { done, total } = sectionProgress(s.name, shift, date);
             const pct = total ? Math.round((done / total) * 100) : 0;
