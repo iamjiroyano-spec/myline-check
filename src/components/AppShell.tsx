@@ -527,6 +527,8 @@ function CustomThemeEditor({
     saveCustomTheme(c);
     document.documentElement.setAttribute("data-theme", "custom");
     try {
+      const { lsStore } = await import("@/lib/lsStore");
+      lsStore.setItem("linecheck:theme-preset", "custom");
       localStorage.setItem("linecheck:theme-preset", "custom");
     } catch {}
     onSaved(c);
