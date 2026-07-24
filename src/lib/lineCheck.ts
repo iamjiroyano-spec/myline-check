@@ -462,13 +462,16 @@ export function dayHistory(date: string): DayHistory {
     let allDone = true;
     let secTotal = 0;
     for (const cat of cats) {
+      const seen = new Map<string, number>();
       for (const item of cat.items) {
+        const occ = seen.get(item.name) ?? 0;
+        seen.set(item.name, occ + 1);
         totalItems++;
         secTotal++;
         const slots: Slot[] = getShifts().map((s) => s.id);
         let itemDoneAnyShift = false;
         for (const slot of slots) {
-          const e = readEntry(state, cat.group, item.name, slot);
+          const e = readEntry(state, cat.group, item.name, slot, occ);
           if (e?.status) {
             anyTouched = true;
             itemDoneAnyShift = true;
