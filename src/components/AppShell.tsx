@@ -413,10 +413,15 @@ function ThemeToggle() {
       const { loadCustomTheme, saveCustomTheme } = await import("@/lib/customTheme");
       saveCustomTheme(loadCustomTheme());
     }
+    // Always apply dark mode when picking from the dark themes menu
+    root.classList.add("dark");
+    setIsDark(true);
     try {
       const { lsStore } = await import("@/lib/lsStore");
       lsStore.setItem("linecheck:theme-preset", id);
       localStorage.setItem("linecheck:theme-preset", id);
+      lsStore.setItem("linecheck:theme", "dark");
+      localStorage.setItem("linecheck:theme", "dark");
     } catch {}
   };
   return (
@@ -440,7 +445,7 @@ function ThemeToggle() {
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Theme
+            Dark Themes
           </p>
           <ul className="pb-1">
             {THEME_PRESETS.map((p) => (
