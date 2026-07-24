@@ -809,7 +809,7 @@ function SectionPage() {
                           aria-label={`${item.name} status`}
                         >
                           <option value="">Unchecked</option>
-                          {STATUSES.map((s) => (
+                          {STATUSES.map((s: string) => (
                             <option key={s} value={s}>
                               {s}
                             </option>
