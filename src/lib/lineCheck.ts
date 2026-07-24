@@ -13,6 +13,19 @@ export type SectionState = {
 };
 
 export const STATUSES = data.statuses;
+
+/** Returns the effective status list, merging user-defined statuses from
+ *  settings with defaults. */
+export function getEffectiveStatuses(): string[] {
+  try {
+    const raw = lsStore.getItem("linecheck:settings:statuses");
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) return arr.filter((s) => typeof s === "string");
+    }
+  } catch {}
+  return STATUSES;
+}
 export const STAFF = data.staff;
 export const SECTIONS = data.sections.filter((s) => s.items.length > 0);
 
