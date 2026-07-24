@@ -73,10 +73,21 @@ export function effectiveCategorizedItems(
       }
     }
   } catch {}
+
+  const sec = data.sections.find((s) => s.name === sectionName);
+  if (sec) {
+    const groups = new Map<string, { group: string; items: { name: string }[] }>();
+    for (const item of sec.items) {
+      const group = item.group || "Items";
+      if (!groups.has(group)) groups.set(group, { group, items: [] });
+      groups.get(group)?.items.push({ name: item.name });
+    }
+    return [...groups.values()];
+  }
+
   const fromSettings = getEffectiveSections().find((s) => s.name === sectionName);
   if (fromSettings) return [{ group: "Items", items: fromSettings.items }];
-  const sec = data.sections.find((s) => s.name === sectionName);
-  return sec ? [{ group: "Items", items: sec.items }] : [];
+  return [];
 }
 
 /** Compound entry key so items with the same display name in different
