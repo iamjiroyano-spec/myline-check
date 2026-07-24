@@ -413,10 +413,15 @@ function ThemeToggle() {
       const { loadCustomTheme, saveCustomTheme } = await import("@/lib/customTheme");
       saveCustomTheme(loadCustomTheme());
     }
+    // Always apply dark mode when picking from the dark themes menu
+    root.classList.add("dark");
+    setIsDark(true);
     try {
       const { lsStore } = await import("@/lib/lsStore");
       lsStore.setItem("linecheck:theme-preset", id);
       localStorage.setItem("linecheck:theme-preset", id);
+      lsStore.setItem("linecheck:theme", "dark");
+      localStorage.setItem("linecheck:theme", "dark");
     } catch {}
   };
   return (
