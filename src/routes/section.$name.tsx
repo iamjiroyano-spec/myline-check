@@ -258,46 +258,53 @@ function SectionPage() {
 
   const slot: Slot = shell.shift;
   const allItems = struct.flatMap((c) => c.items);
+  const allCatItems = struct.flatMap((c) =>
+    c.items.map((i) => ({ group: c.group, name: i.name })),
+  );
   const total = allItems.length;
-  const done = allItems.filter((i) => state.entries[i.name]?.[slot]?.status).length;
+  const done = allCatItems.filter(
+    (ci) => readEntry(state, ci.group, ci.name, slot)?.status,
+  ).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
-  const missingNotes = allItems.filter((i) => {
-    const e = state.entries[i.name]?.[slot];
+  const missingNotes = allCatItems.filter((ci) => {
+    const e = readEntry(state, ci.group, ci.name, slot);
     return e?.status && FLAG_STATUSES.has(e.status) && !e.note?.trim();
   });
   const canSave = missingNotes.length === 0;
 
-  const setEntry = (item: string, patch: Partial<Entry>) => {
+  const setEntry = (group: string, item: string, patch: Partial<Entry>) => {
+    const k = entryKey(group, item);
     setState((prev) => ({
       ...prev,
       entries: {
         ...prev.entries,
-        [item]: {
-          op: prev.entries[item]?.op ?? emptyEntry(),
-          mid: prev.entries[item]?.mid ?? emptyEntry(),
-          cl: prev.entries[item]?.cl ?? emptyEntry(),
-          [slot]: { ...(prev.entries[item]?.[slot] ?? emptyEntry()), ...patch },
+        [k]: {
+          op: prev.entries[k]?.op ?? emptyEntry(),
+          mid: prev.entries[k]?.mid ?? emptyEntry(),
+          cl: prev.entries[k]?.cl ?? emptyEntry(),
+          [slot]: { ...(prev.entries[k]?.[slot] ?? emptyEntry()), ...patch },
         },
       },
     }));
   };
 
 
-  const toggleCheck = (item: string) => {
-    const cur = state.entries[item]?.[slot]?.status;
-    setEntry(item, { status: cur === "OK" ? "" : "OK" });
+  const toggleCheck = (group: string, item: string) => {
+    const cur = readEntry(state, group, item, slot)?.status;
+    setEntry(group, item, { status: cur === "OK" ? "" : "OK" });
   };
 
   const markAllOK = () => {
     setState((prev) => {
       const entries = { ...prev.entries };
-      for (const it of allItems) {
-        entries[it.name] = {
-          op: entries[it.name]?.op ?? emptyEntry(),
-          mid: entries[it.name]?.mid ?? emptyEntry(),
-          cl: entries[it.name]?.cl ?? emptyEntry(),
-          [slot]: { status: "OK", note: entries[it.name]?.[slot]?.note ?? "" },
+      for (const ci of allCatItems) {
+        const k = entryKey(ci.group, ci.name);
+        entries[k] = {
+          op: entries[k]?.op ?? emptyEntry(),
+          mid: entries[k]?.mid ?? emptyEntry(),
+          cl: entries[k]?.cl ?? emptyEntry(),
+          [slot]: { status: "OK", note: entries[k]?.[slot]?.note ?? "" },
         };
       }
       return { ...prev, entries };
@@ -307,11 +314,12 @@ function SectionPage() {
   const unmarkAll = () => {
     setState((prev) => {
       const entries = { ...prev.entries };
-      for (const it of allItems) {
-        entries[it.name] = {
-          op: entries[it.name]?.op ?? emptyEntry(),
-          mid: entries[it.name]?.mid ?? emptyEntry(),
-          cl: entries[it.name]?.cl ?? emptyEntry(),
+      for (const ci of allCatItems) {
+        const k = entryKey(ci.group, ci.name);
+        entries[k] = {
+          op: entries[k]?.op ?? emptyEntry(),
+          mid: entries[k]?.mid ?? emptyEntry(),
+          cl: entries[k]?.cl ?? emptyEntry(),
           [slot]: { status: "", note: "" },
         };
       }
