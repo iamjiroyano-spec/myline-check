@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   FLAG_STATUSES,
   SLOT_LABEL,
+  entryKey,
   type Slot,
 } from "@/lib/lineCheck";
 import {
