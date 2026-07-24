@@ -294,6 +294,42 @@ function TabPill({
 
 /* ============= STATIONS ============= */
 
+function renameStationKeys(oldName: string, newName: string) {
+  if (oldName === newName) return;
+  const oldEntry = `linecheck:${oldName}:`;
+  const oldStruct = `linecheck:section-items:${oldName}`;
+  const oldTemps = `linecheck:temps:${oldName}:`;
+  const oldOrderCats = `linecheck:order:section:${oldName}:categories`;
+  const oldOrderItemsPrefix = `linecheck:order:section:${oldName}:items:`;
+  try {
+    for (const k of lsStore.keys()) {
+      let target: string | null = null;
+      if (k.startsWith(oldEntry)) target = `linecheck:${newName}:` + k.slice(oldEntry.length);
+      else if (k === oldStruct) target = `linecheck:section-items:${newName}`;
+      else if (k.startsWith(oldTemps)) target = `linecheck:temps:${newName}:` + k.slice(oldTemps.length);
+      else if (k === oldOrderCats) target = `linecheck:order:section:${newName}:categories`;
+      else if (k.startsWith(oldOrderItemsPrefix))
+        target = `linecheck:order:section:${newName}:items:` + k.slice(oldOrderItemsPrefix.length);
+      if (target) {
+        const v = lsStore.getItem(k);
+        if (v != null) lsStore.setItem(target, v);
+        lsStore.removeItem(k);
+      }
+    }
+    // Update station order list
+    const orderRaw = lsStore.getItem("linecheck:order:stations");
+    if (orderRaw) {
+      try {
+        const arr = JSON.parse(orderRaw) as string[];
+        if (Array.isArray(arr)) {
+          const next = arr.map((n) => (n === oldName ? newName : n));
+          lsStore.setItem("linecheck:order:stations", JSON.stringify(next));
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
 function StationsPanel() {
   const initial: LocalStation[] = useMemo(
     () =>
@@ -309,9 +345,13 @@ function StationsPanel() {
   );
   const [name, setName] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   useEffect(() => {
     lsStore.setItem(STATIONS_KEY, JSON.stringify(stations));
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event("linecheck:update"));
   }, [stations]);
 
   const add = () => {
@@ -324,6 +364,31 @@ function StationsPanel() {
       "Utensils";
     setStations((s) => [{ name: n.toUpperCase(), icon: nextIcon, items: [] }, ...s]);
     setName("");
+  };
+
+  const startRename = (idx: number) => {
+    setRenamingIdx(idx);
+    setRenameValue(stations[idx].name);
+  };
+  const cancelRename = () => {
+    setRenamingIdx(null);
+    setRenameValue("");
+  };
+  const commitRename = (idx: number) => {
+    const oldName = stations[idx].name;
+    const newName = renameValue.trim().toUpperCase();
+    if (!newName || newName === oldName) {
+      cancelRename();
+      return;
+    }
+    if (stations.some((s, i) => i !== idx && s.name === newName)) {
+      alert(`A station named "${newName}" already exists.`);
+      return;
+    }
+    renameStationKeys(oldName, newName);
+    setStations((s) => s.map((x, i) => (i === idx ? { ...x, name: newName } : x)));
+    if (expanded === oldName) setExpanded(newName);
+    cancelRename();
   };
 
   return (
@@ -348,6 +413,7 @@ function StationsPanel() {
         {stations.map((st, idx) => {
           const Icon = SECTION_ICONS[st.icon] ?? Utensils;
           const open = expanded === st.name;
+          const isRenaming = renamingIdx === idx;
           return (
             <li
               key={st.name + idx}
@@ -372,16 +438,41 @@ function StationsPanel() {
                 />
 
                 <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="font-bold tracking-tight">{st.name}</span>
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(idx);
+                      if (e.key === "Escape") cancelRename();
+                    }}
+                    onBlur={() => commitRename(idx)}
+                    className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm font-bold tracking-tight outline-none focus:border-foreground/40"
+                  />
+                ) : (
+                  <>
+                    <span className="font-bold tracking-tight">{st.name}</span>
+                    <button
+                      onClick={() => startRename(idx)}
+                      className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Rename"
+                      title="Rename station"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
 
 
                 <span className="ml-auto text-xs text-muted-foreground">
                   {st.items.length} cats
                 </span>
                 <button
-                  onClick={() =>
-                    setStations((s) => s.filter((_, i) => i !== idx))
-                  }
+                  onClick={() => {
+                    if (confirm(`Delete station "${st.name}"? This does not delete its saved check history.`))
+                      setStations((s) => s.filter((_, i) => i !== idx));
+                  }}
                   className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger"
                   aria-label="Delete"
                 >
@@ -391,7 +482,10 @@ function StationsPanel() {
               {open && (
                 <div className="border-t border-border px-12 py-3">
                   {st.items.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No items yet.</p>
+                    <p className="text-xs text-muted-foreground">
+                      No categories yet. Open this station from the dashboard and use{" "}
+                      <span className="font-semibold">Edit Categories</span> to add items.
+                    </p>
                   ) : (
                     <ul className="grid grid-cols-2 gap-1.5 text-xs">
                       {st.items.map((it) => (
