@@ -469,13 +469,17 @@ function StationsPanel() {
                   <input
                     autoFocus
                     value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
+                    onChange={(e) => {
+                      setRenameValue(e.target.value);
+                      if (renameError) setRenameError(null);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") commitRename(idx);
                       if (e.key === "Escape") cancelRename();
                     }}
                     onBlur={() => commitRename(idx)}
-                    className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm font-bold tracking-tight outline-none focus:border-foreground/40"
+                    aria-invalid={!!renameError}
+                    className={`min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-sm font-bold tracking-tight outline-none focus:border-foreground/40 ${renameError ? "border-danger" : "border-border"}`}
                   />
                 ) : (
                   <>
