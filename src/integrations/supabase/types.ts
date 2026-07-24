@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      allowed_emails: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+        }
+        Relationships: []
+      }
       shared_shifts: {
         Row: {
           brand_name: string
@@ -85,6 +103,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

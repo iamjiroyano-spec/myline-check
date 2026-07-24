@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useShellState, SECTION_ICONS } from "@/components/AppShell";
 import { SECTIONS, STAFF, STATUSES, getShifts, saveShifts, type Slot, type ShiftDef } from "@/lib/lineCheck";
+import { supabase } from "@/integrations/supabase/client";
+import { ADMIN_EMAIL, isAdminEmail } from "@/lib/allowlist";
 import {
   ArrowLeft,
   Settings as SettingsIcon,
@@ -19,6 +21,7 @@ import {
   Image as ImageIcon,
   Upload,
   Pencil,
+  ShieldCheck,
 } from "lucide-react";
 
 
@@ -32,7 +35,7 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
-type Tab = "branding" | "stations" | "team" | "statuses" | "shifts" | "shelves" | "containers";
+type Tab = "branding" | "stations" | "team" | "statuses" | "shifts" | "shelves" | "containers" | "access";
 
 const ICON_OPTIONS = Object.keys(SECTION_ICONS);
 
@@ -86,6 +89,11 @@ function loadJSON<T>(key: string, fallback: T): T {
 function SettingsPage() {
   const shell = useShellState("Settings");
   const [tab, setTab] = useState<Tab>("branding");
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentEmail(data.user?.email ?? null));
+  }, []);
+  const isAdmin = isAdminEmail(currentEmail);
 
   return (
     <AppShell {...shell} title="Settings">
@@ -124,6 +132,11 @@ function SettingsPage() {
           <TabPill active={tab === "containers"} onClick={() => setTab("containers")} icon={<Package className="h-4 w-4" />}>
             Container
           </TabPill>
+          {isAdmin && (
+            <TabPill active={tab === "access"} onClick={() => setTab("access")} icon={<ShieldCheck className="h-4 w-4" />}>
+              Access
+            </TabPill>
+          )}
         </div>
 
         {tab === "branding" && <BrandingPanel />}
@@ -149,6 +162,7 @@ function SettingsPage() {
             eventName="linecheck:containers-update"
           />
         )}
+        {tab === "access" && isAdmin && <AccessPanel />}
       </div>
     </AppShell>
   );
@@ -969,5 +983,151 @@ function SimpleListPanel({
         ))}
       </ul>
     </div>
+  );
+}
+
+/* ============= ACCESS (admin allowlist) ============= */
+
+function AccessPanel() {
+  const [emails, setEmails] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("allowed_emails")
+      .select("email")
+      .order("email");
+    if (error) setError(error.message);
+    setEmails((data ?? []).map((r) => r.email as string));
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const add = async () => {
+    const raw = input.trim().toLowerCase();
+    if (!raw) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (emails.some((e) => e.toLowerCase() === raw)) {
+      setError("This email is already on the list.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("allowed_emails")
+      .insert({ email: raw, created_by: userData.user?.id ?? null });
+    setBusy(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setInput("");
+    void load();
+  };
+
+  const remove = async (email: string) => {
+    if (email.toLowerCase() === ADMIN_EMAIL) return;
+    if (!confirm(`Remove ${email} from allowed users?`)) return;
+    const { error } = await supabase
+      .from("allowed_emails")
+      .delete()
+      .eq("email", email);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    void load();
+  };
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldCheck className="h-5 w-5 text-foreground" />
+        <h3 className="text-lg font-bold">Access Control</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Only the admin ({ADMIN_EMAIL}) and the emails listed below may sign in
+        (Google or password). Add sub-account emails here before they attempt
+        to log in.
+      </p>
+
+      <div className="mb-4 flex gap-2">
+        <input
+          type="email"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void add();
+            }
+          }}
+          placeholder="user@example.com"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+        />
+        <button
+          type="button"
+          onClick={() => void add()}
+          disabled={busy}
+          className="flex items-center gap-1 rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          Add
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {emails.length === 0 && (
+            <li className="p-3 text-sm text-muted-foreground">No emails yet.</li>
+          )}
+          {emails.map((e) => {
+            const isAdminRow = e.toLowerCase() === ADMIN_EMAIL;
+            return (
+              <li key={e} className="flex items-center justify-between gap-3 p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{e}</span>
+                  {isAdminRow && (
+                    <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                {!isAdminRow && (
+                  <button
+                    type="button"
+                    onClick={() => void remove(e)}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label={`Remove ${e}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
