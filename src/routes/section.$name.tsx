@@ -287,23 +287,30 @@ function SectionPage() {
   const slot: Slot = shell.shift;
   const STATUSES = getEffectiveStatuses();
   const allItems = struct.flatMap((c) => c.items);
-  const allCatItems = struct.flatMap((c) =>
-    c.items.map((i) => ({ group: c.group, name: i.name })),
-  );
+  // Assign each item a per-category occurrence index so duplicates within a
+  // category (or the same name appearing twice) get independent entries.
+  const allCatItems = struct.flatMap((c) => {
+    const seen = new Map<string, number>();
+    return c.items.map((i) => {
+      const occ = seen.get(i.name) ?? 0;
+      seen.set(i.name, occ + 1);
+      return { group: c.group, name: i.name, occ };
+    });
+  });
   const total = allItems.length;
   const done = allCatItems.filter(
-    (ci) => readEntry(state, ci.group, ci.name, slot)?.status,
+    (ci) => readEntry(state, ci.group, ci.name, slot, ci.occ)?.status,
   ).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   const missingNotes = allCatItems.filter((ci) => {
-    const e = readEntry(state, ci.group, ci.name, slot);
+    const e = readEntry(state, ci.group, ci.name, slot, ci.occ);
     return e?.status && FLAG_STATUSES.has(e.status) && !e.note?.trim();
   });
   const canSave = missingNotes.length === 0;
 
-  const setEntry = (group: string, item: string, patch: Partial<Entry>) => {
-    const k = entryKey(group, item);
+  const setEntry = (group: string, item: string, occ: number, patch: Partial<Entry>) => {
+    const k = entryKey(group, item, occ);
     setState((prev) => ({
       ...prev,
       entries: {
@@ -319,16 +326,16 @@ function SectionPage() {
   };
 
 
-  const toggleCheck = (group: string, item: string) => {
-    const cur = readEntry(state, group, item, slot)?.status;
-    setEntry(group, item, { status: cur === "OK" ? "" : "OK" });
+  const toggleCheck = (group: string, item: string, occ: number) => {
+    const cur = readEntry(state, group, item, slot, occ)?.status;
+    setEntry(group, item, occ, { status: cur === "OK" ? "" : "OK" });
   };
 
   const markAllOK = () => {
     setState((prev) => {
       const entries = { ...prev.entries };
       for (const ci of allCatItems) {
-        const k = entryKey(ci.group, ci.name);
+        const k = entryKey(ci.group, ci.name, ci.occ);
         entries[k] = {
           op: entries[k]?.op ?? emptyEntry(),
           mid: entries[k]?.mid ?? emptyEntry(),
@@ -344,7 +351,7 @@ function SectionPage() {
     setState((prev) => {
       const entries = { ...prev.entries };
       for (const ci of allCatItems) {
-        const k = entryKey(ci.group, ci.name);
+        const k = entryKey(ci.group, ci.name, ci.occ);
         entries[k] = {
           op: entries[k]?.op ?? emptyEntry(),
           mid: entries[k]?.mid ?? emptyEntry(),
@@ -355,6 +362,7 @@ function SectionPage() {
       return { ...prev, entries };
     });
   };
+
 
   const saveCheck = () => {
     if (!canSave) return;
