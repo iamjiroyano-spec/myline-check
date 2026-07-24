@@ -223,6 +223,23 @@ function SectionPage() {
     }
   }, [tempKey]);
 
+  useEffect(() => {
+    try {
+      setComment(lsStore.getItem(commentKey) ?? "");
+    } catch {
+      setComment("");
+    }
+  }, [commentKey]);
+
+  const onCommentChange = (value: string) => {
+    setComment(value);
+    try {
+      if (value) lsStore.setItem(commentKey, value);
+      else lsStore.removeItem(commentKey);
+      window.dispatchEvent(new Event("linecheck:update"));
+    } catch {}
+  };
+
   const setTemp = (group: string, value: string) => {
     setTemps((prev) => {
       const next = { ...prev, [group]: value };
