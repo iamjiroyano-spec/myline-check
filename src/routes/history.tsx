@@ -106,11 +106,11 @@ function HistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, station, shiftFilter]);
 
-  const share = async (date: string, slot: Slot) => {
-    const key = `${date}:${slot}`;
+  const share = async (date: string, slot: Slot, stationName?: string) => {
+    const key = stationName ? `${date}:${slot}:${stationName}` : `${date}:${slot}`;
     try {
       const { publishSharedShift } = await import("@/lib/share");
-      const url = await publishSharedShift(date, slot);
+      const url = await publishSharedShift(date, slot, stationName);
       try {
         await navigator.clipboard.writeText(url);
         setCopied(key);
@@ -268,7 +268,7 @@ function DayBlock({
 }: {
   date: string;
   shifts: ShiftHistory[];
-  onShare: (date: string, slot: Slot) => void;
+  onShare: (date: string, slot: Slot, station?: string) => void;
   copied: string | null;
   expandedShifts: Record<string, boolean>;
   setExpandedShifts: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
@@ -301,8 +301,8 @@ function DayBlock({
           <ShiftRow
             key={sh.slot}
             sh={sh}
-            onShare={() => onShare(date, sh.slot)}
-            copied={copied === `${date}:${sh.slot}`}
+            onShare={onShare}
+            copied={copied}
             expanded={!!expandedShifts[`${date}:${sh.slot}`]}
             onToggle={() =>
               setExpandedShifts((prev) => ({
@@ -329,8 +329,8 @@ function ShiftRow({
   setExpandedStations,
 }: {
   sh: ShiftHistory;
-  onShare: () => void;
-  copied: boolean;
+  onShare: (date: string, slot: Slot, station?: string) => void;
+  copied: string | null;
   expanded: boolean;
   onToggle: () => void;
   expandedStations: Record<string, boolean>;
@@ -338,6 +338,7 @@ function ShiftRow({
 }) {
   const pct = sh.totalItems ? Math.round((sh.checkedItems / sh.totalItems) * 100) : 0;
   const Icon = SLOT_ICON[sh.slot];
+  const shiftCopied = copied === `${sh.date}:${sh.slot}`;
 
   return (
     <li className="relative">
@@ -414,12 +415,12 @@ function ShiftRow({
             <Edit3 className="h-4 w-4" />
           </Link>
           <button
-            onClick={onShare}
+            onClick={() => onShare(sh.date, sh.slot)}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Copy share link"
-            title={copied ? "Link copied!" : "Copy share link"}
+            aria-label="Copy shift share link"
+            title={shiftCopied ? "Link copied!" : "Copy shift share link"}
           >
-            {copied ? (
+            {shiftCopied ? (
               <CheckCircle2 className="h-4 w-4 text-success" />
             ) : (
               <Share2 className="h-4 w-4" />
@@ -446,8 +447,8 @@ function ShiftRow({
                         !prev[`${sh.date}:${sh.slot}:${station.name}`],
                     }))
                   }
-                  onShare={onShare}
-                  copied={copied}
+                  onShare={() => onShare(sh.date, sh.slot, station.name)}
+                  copied={copied === `${sh.date}:${sh.slot}:${station.name}`}
                 />
               ))
             )}
@@ -508,8 +509,8 @@ function StationRow({
             onShare();
           }}
           className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Copy share link"
-          title={copied ? "Link copied!" : "Copy share link"}
+          aria-label="Copy station share link"
+          title={copied ? "Link copied!" : "Copy station share link"}
         >
           {copied ? (
             <CheckCircle2 className="h-4 w-4 text-success" />
