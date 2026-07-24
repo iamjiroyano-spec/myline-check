@@ -91,9 +91,10 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
   let checkedItems = 0;
   for (const sec of SECTIONS) {
     const state = loadSection(sec.name, date);
+    const items = effectiveItems(sec.name);
     let anyTouched = false;
     let allDone = true;
-    for (const item of sec.items) {
+    for (const item of items) {
       totalItems++;
       const e = state.entries[item.name]?.[slot];
       if (e?.status) {
@@ -105,7 +106,7 @@ export function shiftHistory(date: string, slot: Slot): ShiftHistory {
       }
     }
     if (anyTouched) stationsTouched++;
-    if (anyTouched && allDone && sec.items.length > 0) stationsComplete++;
+    if (anyTouched && allDone && items.length > 0) stationsComplete++;
   }
   return {
     date,
