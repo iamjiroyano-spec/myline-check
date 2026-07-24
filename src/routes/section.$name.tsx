@@ -1004,7 +1004,7 @@ function SectionPage() {
                   reader.onload = () => {
                     const dataUrl = typeof reader.result === "string" ? reader.result : "";
                     if (dataUrl) {
-                      setEntry(viewer.group, viewer.name, { photo: dataUrl });
+                      setEntry(viewer.group, viewer.name, viewer.occ, { photo: dataUrl });
                       setViewer({ ...viewer, photo: dataUrl });
                     }
                   };
