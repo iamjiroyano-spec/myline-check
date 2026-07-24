@@ -344,6 +344,8 @@ function StationsPanel() {
     loadJSON(STATIONS_KEY, initial),
   );
   const [name, setName] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -355,34 +357,48 @@ function StationsPanel() {
   }, [stations]);
 
   const add = () => {
-    const n = name.trim();
-    if (!n) return;
+    const n = name.trim().toUpperCase();
+    if (!n) {
+      setAddError("Please enter a station name.");
+      return;
+    }
+    if (stations.some((s) => s.name.toUpperCase() === n)) {
+      setAddError(`A station named "${n}" already exists.`);
+      return;
+    }
     const used = new Set(stations.map((s) => s.icon));
     const nextIcon =
       ICON_OPTIONS.find((k) => !used.has(k)) ??
       ICON_OPTIONS[stations.length % ICON_OPTIONS.length] ??
       "Utensils";
-    setStations((s) => [{ name: n.toUpperCase(), icon: nextIcon, items: [] }, ...s]);
+    setStations((s) => [{ name: n, icon: nextIcon, items: [] }, ...s]);
     setName("");
+    setAddError(null);
   };
 
   const startRename = (idx: number) => {
     setRenamingIdx(idx);
     setRenameValue(stations[idx].name);
+    setRenameError(null);
   };
   const cancelRename = () => {
     setRenamingIdx(null);
     setRenameValue("");
+    setRenameError(null);
   };
   const commitRename = (idx: number) => {
     const oldName = stations[idx].name;
     const newName = renameValue.trim().toUpperCase();
-    if (!newName || newName === oldName) {
+    if (!newName) {
+      setRenameError("Station name cannot be empty.");
+      return;
+    }
+    if (newName === oldName) {
       cancelRename();
       return;
     }
-    if (stations.some((s, i) => i !== idx && s.name === newName)) {
-      alert(`A station named "${newName}" already exists.`);
+    if (stations.some((s, i) => i !== idx && s.name.toUpperCase() === newName)) {
+      setRenameError(`A station named "${newName}" already exists.`);
       return;
     }
     renameStationKeys(oldName, newName);
