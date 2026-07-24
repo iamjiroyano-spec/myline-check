@@ -74,9 +74,9 @@ export function effectiveCategorizedItems(
     }
   } catch {}
   const fromSettings = getEffectiveSections().find((s) => s.name === sectionName);
-  if (fromSettings) return [{ group: sectionName, items: fromSettings.items }];
+  if (fromSettings) return [{ group: "Items", items: fromSettings.items }];
   const sec = data.sections.find((s) => s.name === sectionName);
-  return sec ? [{ group: sectionName, items: sec.items }] : [];
+  return sec ? [{ group: "Items", items: sec.items }] : [];
 }
 
 /** Compound entry key so items with the same display name in different
