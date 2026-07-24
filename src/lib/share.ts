@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  SECTIONS,
+  getEffectiveSections,
   loadSection,
   loadMember,
   shiftHistory,
@@ -14,6 +14,7 @@ const slotSchema = z.string();
 const entrySchema = z.object({
   status: z.string().catch(""),
   note: z.string().catch(""),
+  photo: z.string().optional(),
 });
 
 const sectionStateSchema = z.object({
@@ -42,17 +43,39 @@ export const sharedShiftPayloadSchema = z.object({
   brand_name: z.string().catch("LUMA"),
   summary: summarySchema,
   sections: z
-    .array(z.object({ name: z.string(), state: sectionStateSchema }))
+    .array(
+      z.object({
+        name: z.string(),
+        state: sectionStateSchema,
+        temps: z.record(z.string(), z.string()).catch({}),
+        tempUnit: z.enum(["F", "C"]).catch("F"),
+        comment: z.string().catch(""),
+      }),
+    )
     .catch([]),
 });
 
 export type SharedShiftPayload = z.infer<typeof sharedShiftPayloadSchema>;
 
 function buildPayload(date: string, slot: Slot): SharedShiftPayload {
-  const sections = SECTIONS.map((s) => ({
-    name: s.name,
-    state: loadSection(s.name, date),
-  }));
+  const tempUnit =
+    (lsStore.getItem("linecheck:settings:temp-unit") as "F" | "C" | null) || "F";
+  const sections = getEffectiveSections().map((s) => {
+    let temps: Record<string, string> = {};
+    try {
+      const raw = lsStore.getItem(`linecheck:temps:${s.name}:${date}:${slot}`);
+      if (raw) temps = JSON.parse(raw) ?? {};
+    } catch {}
+    const comment =
+      lsStore.getItem(`linecheck:section-comment:${s.name}:${date}:${slot}`) || "";
+    return {
+      name: s.name,
+      state: loadSection(s.name, date),
+      temps,
+      tempUnit: (tempUnit === "C" ? "C" : "F") as "F" | "C",
+      comment,
+    };
+  });
   const brand_name = lsStore.getItem("linecheck:settings:brand:name") || "LUMA";
   return {
     date,
