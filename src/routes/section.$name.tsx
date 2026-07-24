@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useShellState } from "@/components/AppShell";
 import {
   SECTIONS,
-  STATUSES,
+  getEffectiveStatuses,
   emptyEntry,
   loadSection,
   storageKey,
@@ -257,6 +257,7 @@ function SectionPage() {
   if (!section) return <div className="p-10">Section not found.</div>;
 
   const slot: Slot = shell.shift;
+  const STATUSES = getEffectiveStatuses();
   const allItems = struct.flatMap((c) => c.items);
   const allCatItems = struct.flatMap((c) =>
     c.items.map((i) => ({ group: c.group, name: i.name })),
@@ -808,7 +809,7 @@ function SectionPage() {
                           aria-label={`${item.name} status`}
                         >
                           <option value="">Unchecked</option>
-                          {STATUSES.map((s) => (
+                          {STATUSES.map((s: string) => (
                             <option key={s} value={s}>
                               {s}
                             </option>
