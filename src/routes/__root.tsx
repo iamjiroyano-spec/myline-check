@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  const themeInit = `(function(){try{var t=localStorage.getItem('linecheck:theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(!t&&m)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+  const themeInit = `(function(){try{var t=localStorage.getItem('linecheck:theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(!t&&m)){document.documentElement.classList.add('dark');}var p=localStorage.getItem('linecheck:theme-preset');if(p&&p!=='terracotta'){document.documentElement.setAttribute('data-theme',p);}}catch(e){}})();`;
   return (
     <html lang="en">
       <head>

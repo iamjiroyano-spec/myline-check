@@ -33,6 +33,8 @@ import {
   LogOut,
   Moon,
   Sun,
+  Palette,
+  Check,
 } from "lucide-react";
 
 const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -339,12 +341,34 @@ function TopBar({
   );
 }
 
+const THEME_PRESETS: { id: string; label: string; swatch: [string, string, string] }[] = [
+  { id: "terracotta", label: "Terracotta & Sage", swatch: ["#c4654a", "#e8a87c", "#87a878"] },
+  { id: "ocean", label: "Ocean Deep", swatch: ["#0c2340", "#2d8a9e", "#5cbdb9"] },
+  { id: "forest", label: "Forest & Moss", swatch: ["#1a3c2a", "#5a8a5c", "#a0c49d"] },
+  { id: "indigo", label: "Midnight Indigo", swatch: ["#0a0a1a", "#1e1e5a", "#4f46e5"] },
+  { id: "noir", label: "Noir & Gold", swatch: ["#0d0d0d", "#c9a84c", "#f0d78c"] },
+  { id: "cloud", label: "Cloud White", swatch: ["#e8ecf1", "#94a3b8", "#3b82f6"] },
+  { id: "emerald", label: "Emerald Prestige", swatch: ["#064e3b", "#0d7a5f", "#c9a84c"] },
+];
+
 function ThemeToggle() {
   const [isDark, setIsDark] = useState(false);
+  const [preset, setPreset] = useState("terracotta");
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
+    setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
   }, []);
-  const toggle = () => {
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest("[data-theme-menu]")) setOpen(false);
+    };
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [open]);
+  const toggleMode = () => {
     const next = !isDark;
     setIsDark(next);
     const root = document.documentElement;
@@ -354,14 +378,59 @@ function ThemeToggle() {
       localStorage.setItem("linecheck:theme", next ? "dark" : "light");
     } catch {}
   };
+  const pickPreset = (id: string) => {
+    setPreset(id);
+    const root = document.documentElement;
+    if (id === "terracotta") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", id);
+    try {
+      localStorage.setItem("linecheck:theme-preset", id);
+    } catch {}
+  };
   return (
-    <button
-      onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
+    <div className="relative" data-theme-menu>
+      <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Choose theme"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <Palette className="h-4 w-4" />
+        </button>
+        <button
+          onClick={toggleMode}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+      </div>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+          <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Theme
+          </p>
+          <ul className="pb-1">
+            {THEME_PRESETS.map((p) => (
+              <li key={p.id}>
+                <button
+                  onClick={() => pickPreset(p.id)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+                >
+                  <span className="flex h-4 w-8 overflow-hidden rounded-full ring-1 ring-border">
+                    {p.swatch.map((c, i) => (
+                      <span key={i} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </span>
+                  <span className="flex-1 truncate">{p.label}</span>
+                  {preset === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
