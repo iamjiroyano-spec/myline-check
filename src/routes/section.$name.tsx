@@ -736,9 +736,15 @@ function SectionPage() {
       {!editMode &&
         struct
           .map((cat) => {
-            const visible = cat.items.filter((item) => {
+            const seen = new Map<string, number>();
+            const withOcc = cat.items.map((item) => {
+              const occ = seen.get(item.name) ?? 0;
+              seen.set(item.name, occ + 1);
+              return { item, occ };
+            });
+            const visible = withOcc.filter(({ item, occ }) => {
               if (!flaggedOnly) return true;
-              const s = readEntry(state, cat.group, item.name, slot)?.status;
+              const s = readEntry(state, cat.group, item.name, slot, occ)?.status;
               return !!s && FLAG_STATUSES.has(s);
             });
             return [cat, visible] as const;
@@ -777,8 +783,8 @@ function SectionPage() {
               </div>
 
               <div className="space-y-2">
-                {items.map((item) => {
-                  const e = readEntry(state, cat.group, item.name, slot);
+                {items.map(({ item, occ }) => {
+                  const e = readEntry(state, cat.group, item.name, slot, occ);
                   const status = e?.status ?? "";
                   const checked = !!status && OK_STATUSES.has(status);
                   const flagged = status && FLAG_STATUSES.has(status);
