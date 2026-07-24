@@ -145,14 +145,15 @@ export function sectionProgress(name: string, slot: Slot, date = todayISO()) {
   const sec = SECTIONS.find((s) => s.name === name);
   if (!sec) return { done: 0, total: 0, flagged: 0 };
   const state = loadSection(name, date);
+  const items = effectiveItems(name);
   let done = 0;
   let flagged = 0;
-  for (const item of sec.items) {
+  for (const item of items) {
     const e = state.entries[item.name]?.[slot];
     if (e?.status) done++;
     if (e?.status && FLAG_STATUSES.has(e.status)) flagged++;
   }
-  return { done, total: sec.items.length, flagged };
+  return { done, total: items.length, flagged };
 }
 
 export type FlaggedRow = {
@@ -166,7 +167,7 @@ export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   const rows: FlaggedRow[] = [];
   for (const sec of SECTIONS) {
     const state = loadSection(sec.name, date);
-    for (const item of sec.items) {
+    for (const item of effectiveItems(sec.name)) {
       const e = state.entries[item.name]?.[slot];
       if (e?.status && FLAG_STATUSES.has(e.status)) {
         rows.push({ section: sec.name, item: item.name, status: e.status, slot });
