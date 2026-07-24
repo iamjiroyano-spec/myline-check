@@ -84,44 +84,93 @@ function SharedView() {
 
     type Item = {
       item: string;
-      group: string;
       status: string;
       note: string;
       photo?: string;
       flagged: boolean;
     };
+    type CategoryBlock = { group: string; items: Item[] };
     const out: {
       section: string;
-      items: Item[];
+      categories: CategoryBlock[];
+      itemCount: number;
+      flaggedCount: number;
+      okCount: number;
+      photoCount: number;
       temps: { group: string; value: string }[];
       tempUnit: "F" | "C";
       comment: string;
     }[] = [];
+
     for (const s of data.payload.sections) {
       const st = s.state;
-      const items: Item[] = [];
-      for (const [key, byslot] of Object.entries(st.entries ?? {})) {
+      const entries = st.entries ?? {};
+      const seen = new Set<string>();
+      const categories: CategoryBlock[] = [];
+
+      // Preferred: use the section's category arrangement from the payload.
+      const cats = Array.isArray(s.categories) ? s.categories : [];
+      for (const cat of cats) {
+        const items: Item[] = [];
+        for (const it of cat.items ?? []) {
+          const key = entryKey(cat.group, it.name);
+          const legacy = entries[it.name]?.[slot];
+          const e = entries[key]?.[slot] ?? legacy;
+          if (!e?.status) continue;
+          seen.add(key);
+          if (legacy && !entries[key]) seen.add(it.name);
+          items.push({
+            item: it.name,
+            status: e.status,
+            note: e.note || "",
+            photo: e.photo,
+            flagged: FLAG_STATUSES.has(e.status),
+          });
+        }
+        if (items.length) categories.push({ group: cat.group, items });
+      }
+
+      // Fallback: surface any recorded entries that weren't matched above
+      // (e.g. old shares without category info, or items since removed).
+      const leftover: Record<string, Item[]> = {};
+      for (const [key, byslot] of Object.entries(entries)) {
+        if (seen.has(key)) continue;
         const e = byslot?.[slot];
         if (!e?.status) continue;
         const group = key.includes("::") ? key.split("::")[0] : "";
-        const itemName = key.includes("::") ? key.split("::").slice(1).join("::") : key;
-        items.push({
+        const itemName = key.includes("::")
+          ? key.split("::").slice(1).join("::")
+          : key;
+        (leftover[group] ||= []).push({
           item: itemName,
-          group,
           status: e.status,
           note: e.note || "",
           photo: e.photo,
           flagged: FLAG_STATUSES.has(e.status),
         });
       }
+      for (const [group, items] of Object.entries(leftover)) {
+        const existing = categories.find((c) => c.group === group);
+        if (existing) existing.items.push(...items);
+        else categories.push({ group, items });
+      }
+
+      const allItems = categories.flatMap((c) => c.items);
+      const flaggedCount = allItems.filter((i) => i.flagged).length;
+      const okCount = allItems.length - flaggedCount;
+      const photoCount = allItems.filter((i) => i.photo).length;
       const temps = Object.entries(s.temps ?? {})
         .filter(([, v]) => v && String(v).trim().length > 0)
         .map(([group, value]) => ({ group, value: String(value) }));
       const comment = (s.comment || "").trim();
-      if (items.length || temps.length || comment) {
+      if (allItems.length || temps.length || comment) {
         out.push({
           section: s.name,
-          items,
+          categories,
+          itemCount: allItems.length,
+          flaggedCount,
+          okCount,
+          photoCount,
           temps,
           tempUnit: s.tempUnit ?? "F",
           comment,
@@ -130,6 +179,7 @@ function SharedView() {
     }
     return out;
   }, [data]);
+
 
   const displayTemp = (rawF: string, unit: "F" | "C") => {
     const n = Number(rawF);
