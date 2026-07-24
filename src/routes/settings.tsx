@@ -2,7 +2,7 @@ import { lsStore } from "@/lib/lsStore";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useShellState, SECTION_ICONS } from "@/components/AppShell";
-import { SECTIONS, STAFF, STATUSES } from "@/lib/lineCheck";
+import { SECTIONS, STAFF, STATUSES, getShiftLabels, SHIFT_LABELS_KEY, type Slot } from "@/lib/lineCheck";
 import {
   ArrowLeft,
   Settings as SettingsIcon,
