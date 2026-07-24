@@ -89,6 +89,11 @@ function loadJSON<T>(key: string, fallback: T): T {
 function SettingsPage() {
   const shell = useShellState("Settings");
   const [tab, setTab] = useState<Tab>("branding");
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentEmail(data.user?.email ?? null));
+  }, []);
+  const isAdmin = isAdminEmail(currentEmail);
 
   return (
     <AppShell {...shell} title="Settings">
