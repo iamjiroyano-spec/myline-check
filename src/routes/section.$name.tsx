@@ -898,7 +898,7 @@ function SectionPage() {
                       {e?.photo && (
                         <button
                           type="button"
-                          onClick={() => setViewer({ group: cat.group, name: item.name, photo: e.photo! })}
+                          onClick={() => setViewer({ group: cat.group, name: item.name, occ, photo: e.photo! })}
                           className="grid h-7 w-7 place-items-center overflow-hidden rounded-md border border-border"
                           title="View photo"
                           aria-label={`View photo for ${item.name}`}
