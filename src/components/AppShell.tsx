@@ -121,6 +121,11 @@ function Sidebar({ date, shift }: { date: string; shift: Slot }) {
     window.addEventListener("storage", fn);
     window.addEventListener("linecheck:update", fn);
     window.addEventListener("linecheck:scope-change", fn);
+    // Install per-user theme sync + apply current stored theme.
+    import("@/lib/theme").then(({ installThemeSync, applyStoredTheme }) => {
+      installThemeSync();
+      applyStoredTheme();
+    });
     return () => {
       window.removeEventListener("storage", fn);
       window.removeEventListener("linecheck:update", fn);
@@ -362,12 +367,21 @@ function ThemeToggle() {
     "#87a878",
   ]);
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-    setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
-    import("@/lib/customTheme").then(({ loadCustomTheme }) => {
-      const c = loadCustomTheme();
-      setCustomSwatch([c.primary, c.background, c.accent]);
-    });
+    const sync = () => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+      setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
+      import("@/lib/customTheme").then(({ loadCustomTheme }) => {
+        const c = loadCustomTheme();
+        setCustomSwatch([c.primary, c.background, c.accent]);
+      });
+    };
+    sync();
+    window.addEventListener("linecheck:update", sync);
+    window.addEventListener("linecheck:scope-change", sync);
+    return () => {
+      window.removeEventListener("linecheck:update", sync);
+      window.removeEventListener("linecheck:scope-change", sync);
+    };
   }, []);
   useEffect(() => {
     if (!open) return;
@@ -378,13 +392,15 @@ function ThemeToggle() {
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [open]);
-  const toggleMode = () => {
+  const toggleMode = async () => {
     const next = !isDark;
     setIsDark(next);
     const root = document.documentElement;
     if (next) root.classList.add("dark");
     else root.classList.remove("dark");
     try {
+      const { lsStore } = await import("@/lib/lsStore");
+      lsStore.setItem("linecheck:theme", next ? "dark" : "light");
       localStorage.setItem("linecheck:theme", next ? "dark" : "light");
     } catch {}
   };
@@ -398,6 +414,8 @@ function ThemeToggle() {
       saveCustomTheme(loadCustomTheme());
     }
     try {
+      const { lsStore } = await import("@/lib/lsStore");
+      lsStore.setItem("linecheck:theme-preset", id);
       localStorage.setItem("linecheck:theme-preset", id);
     } catch {}
   };
@@ -523,6 +541,8 @@ function CustomThemeEditor({
     saveCustomTheme(c);
     document.documentElement.setAttribute("data-theme", "custom");
     try {
+      const { lsStore } = await import("@/lib/lsStore");
+      lsStore.setItem("linecheck:theme-preset", "custom");
       localStorage.setItem("linecheck:theme-preset", "custom");
     } catch {}
     onSaved(c);

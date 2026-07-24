@@ -117,10 +117,15 @@ export function buildCustomThemeCss(c: CustomColors) {
 }`;
 }
 
+import { lsStore } from "@/lib/lsStore";
+
 export function loadCustomTheme(): CustomColors {
   try {
-    const raw = localStorage.getItem(CUSTOM_KEY);
+    const raw = lsStore.getItem(CUSTOM_KEY);
     if (raw) return { ...DEFAULT_CUSTOM, ...JSON.parse(raw) };
+    // Legacy unscoped fallback.
+    const legacy = typeof window !== "undefined" ? localStorage.getItem(CUSTOM_KEY) : null;
+    if (legacy) return { ...DEFAULT_CUSTOM, ...JSON.parse(legacy) };
   } catch {}
   return DEFAULT_CUSTOM;
 }
@@ -139,6 +144,9 @@ export function applyCustomStyle(css: string) {
 export function saveCustomTheme(c: CustomColors) {
   const css = buildCustomThemeCss(c);
   try {
+    lsStore.setItem(CUSTOM_KEY, JSON.stringify(c));
+    lsStore.setItem(CUSTOM_CSS_KEY, css);
+    // Mirror unscoped so pre-hydration paint on this browser matches next reload.
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(c));
     localStorage.setItem(CUSTOM_CSS_KEY, css);
   } catch {}
