@@ -200,6 +200,10 @@ function HistoryPage() {
               shifts={shifts}
               onShare={share}
               copied={copied}
+              expandedShifts={expandedShifts}
+              setExpandedShifts={setExpandedShifts}
+              expandedStations={expandedStations}
+              setExpandedStations={setExpandedStations}
             />
           ))}
         </div>
