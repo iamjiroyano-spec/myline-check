@@ -77,7 +77,7 @@ function HistoryPage() {
     const totals = { checks: 0, complete: 0, flagged: 0 };
     for (const d of dates) {
       const shifts: ShiftHistory[] = [];
-      for (const slot of SLOT_ORDER) {
+      for (const { id: slot } of getShifts()) {
         if (shiftFilter !== "ALL" && slot !== shiftFilter) continue;
         const sh = shiftHistory(d, slot);
         if (sh.stationsTouched === 0) continue;
