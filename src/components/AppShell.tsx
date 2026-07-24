@@ -51,11 +51,22 @@ const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   "PREP FREEZER": Snowflake,
 };
 
-const SHIFT_OPTIONS: { value: Slot; label: string }[] = [
-  { value: "op", label: "Opening" },
-  { value: "mid", label: "Mid" },
-  { value: "cl", label: "Closing" },
-];
+function useShiftLabels() {
+  const [labels, setLabels] = useState<Record<Slot, string>>(() => getShiftLabels());
+  useEffect(() => {
+    const refresh = () => setLabels(getShiftLabels());
+    window.addEventListener("linecheck:shifts-update", refresh);
+    window.addEventListener("linecheck:update", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("linecheck:shifts-update", refresh);
+      window.removeEventListener("linecheck:update", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+  return labels;
+}
+
 
 type Ctx = {
   date: string;
