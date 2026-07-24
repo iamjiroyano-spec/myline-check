@@ -130,6 +130,7 @@ function SettingsPage() {
         {tab === "stations" && <StationsPanel />}
         {tab === "team" && <TeamPanel />}
         {tab === "statuses" && <StatusPanel />}
+        {tab === "shifts" && <ShiftsPanel />}
         {tab === "shelves" && (
           <SimpleListPanel
             storageKey={SHELVES_KEY}
