@@ -288,7 +288,7 @@ function TopBar({
   member,
   setMember,
 }: Ctx) {
-  const shiftLabels = useShiftLabels();
+  const shifts = useShifts();
 
   const dayName = new Date(date + "T00:00:00").toLocaleDateString(undefined, {
     weekday: "long",
