@@ -121,6 +121,11 @@ function Sidebar({ date, shift }: { date: string; shift: Slot }) {
     window.addEventListener("storage", fn);
     window.addEventListener("linecheck:update", fn);
     window.addEventListener("linecheck:scope-change", fn);
+    // Install per-user theme sync + apply current stored theme.
+    import("@/lib/theme").then(({ installThemeSync, applyStoredTheme }) => {
+      installThemeSync();
+      applyStoredTheme();
+    });
     return () => {
       window.removeEventListener("storage", fn);
       window.removeEventListener("linecheck:update", fn);
