@@ -226,10 +226,12 @@ export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   const rows: FlaggedRow[] = [];
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
-    for (const item of effectiveItems(sec.name)) {
-      const e = state.entries[item.name]?.[slot];
-      if (e?.status && FLAG_STATUSES.has(e.status)) {
-        rows.push({ section: sec.name, item: item.name, status: e.status, slot });
+    for (const cat of effectiveCategorizedItems(sec.name)) {
+      for (const item of cat.items) {
+        const e = readEntry(state, cat.group, item.name, slot);
+        if (e?.status && FLAG_STATUSES.has(e.status)) {
+          rows.push({ section: sec.name, item: item.name, status: e.status, slot });
+        }
       }
     }
   }
