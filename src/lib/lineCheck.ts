@@ -91,13 +91,17 @@ export function effectiveCategorizedItems(
 }
 
 /** Compound entry key so items with the same display name in different
- *  categories don't share status. */
-export function entryKey(group: string, itemName: string) {
-  return `${group}::${itemName}`;
+ *  categories don't share status. When multiple items in the same category
+ *  share a name, `occurrence` disambiguates them (0 = first, 1 = second, …).
+ *  Occurrence 0 keeps the historical key shape for backward compat. */
+export function entryKey(group: string, itemName: string, occurrence = 0) {
+  return occurrence > 0
+    ? `${group}::${itemName}#${occurrence}`
+    : `${group}::${itemName}`;
 }
 
-/** Reads an entry using the compound category+name key. The legacy
- *  bare-name fallback was removed because it caused status mirroring
+/** Reads an entry using the compound category+name(+occurrence) key. The
+ *  legacy bare-name fallback was removed because it caused status mirroring
  *  across categories (and, for shared item names, across stations) whenever
  *  older data was still present in storage. */
 export function readEntry(
@@ -105,9 +109,11 @@ export function readEntry(
   group: string,
   itemName: string,
   slot: Slot,
+  occurrence = 0,
 ): Entry | undefined {
-  return state.entries[entryKey(group, itemName)]?.[slot];
+  return state.entries[entryKey(group, itemName, occurrence)]?.[slot];
 }
+
 
 export const FLAG_STATUSES = new Set([
   "ABOUT TO EXPIRE",
