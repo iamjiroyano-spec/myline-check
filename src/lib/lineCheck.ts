@@ -393,8 +393,11 @@ export function allFlagged(slot: Slot, date = todayISO()): FlaggedRow[] {
   for (const sec of getEffectiveSections()) {
     const state = loadSection(sec.name, date);
     for (const cat of effectiveCategorizedItems(sec.name)) {
+      const seen = new Map<string, number>();
       for (const item of cat.items) {
-        const e = readEntry(state, cat.group, item.name, slot);
+        const occ = seen.get(item.name) ?? 0;
+        seen.set(item.name, occ + 1);
+        const e = readEntry(state, cat.group, item.name, slot, occ);
         if (e?.status && FLAG_STATUSES.has(e.status)) {
           rows.push({ section: sec.name, item: item.name, status: e.status, slot });
         }
