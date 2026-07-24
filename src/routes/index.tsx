@@ -33,7 +33,7 @@ import { getStationOrder, setStationOrder, applyOrder } from "@/lib/order";
 const dashSearch = z
   .object({
     date: z.string().optional(),
-    shift: z.enum(["op", "mid", "cl"]).optional(),
+    shift: z.string().optional(),
   })
   .partial();
 

@@ -51,10 +51,12 @@ const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   "PREP FREEZER": Snowflake,
 };
 
-function useShiftLabels() {
-  const [labels, setLabels] = useState<Record<Slot, string>>(() => getShiftLabels());
+function useShifts() {
+  const [shifts, setShifts] = useState(() => {
+    return getEffectiveShifts();
+  });
   useEffect(() => {
-    const refresh = () => setLabels(getShiftLabels());
+    const refresh = () => setShifts(getEffectiveShifts());
     window.addEventListener("linecheck:shifts-update", refresh);
     window.addEventListener("linecheck:update", refresh);
     window.addEventListener("storage", refresh);
@@ -64,8 +66,14 @@ function useShiftLabels() {
       window.removeEventListener("storage", refresh);
     };
   }, []);
-  return labels;
+  return shifts;
 }
+
+function getEffectiveShifts() {
+  // Lazy import to avoid a top-level cycle.
+  return require("@/lib/lineCheck").getShifts() as { id: string; label: string }[];
+}
+
 
 
 type Ctx = {
