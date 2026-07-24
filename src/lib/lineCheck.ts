@@ -41,19 +41,49 @@ export function getEffectiveSections(): SectionDef[] {
  *  stored under `linecheck:section-items:<name>`. Falls back to the station
  *  items configured in Settings, then the shipped JSON structure. */
 export function effectiveItems(sectionName: string): { name: string }[] {
+  return effectiveCategorizedItems(sectionName).flatMap((c) => c.items);
+}
+
+/** Returns the effective items grouped by category for a section. */
+export function effectiveCategorizedItems(
+  sectionName: string,
+): { group: string; items: { name: string }[] }[] {
   try {
     const raw = lsStore.getItem(`linecheck:section-items:${sectionName}`);
     if (raw) {
-      const cats = JSON.parse(raw) as { items: { name: string }[] }[];
+      const cats = JSON.parse(raw) as { group?: string; items: { name: string }[] }[];
       if (Array.isArray(cats)) {
-        return cats.flatMap((c) => (Array.isArray(c.items) ? c.items : []));
+        return cats.map((c, i) => ({
+          group: c.group ?? `Group ${i + 1}`,
+          items: Array.isArray(c.items) ? c.items : [],
+        }));
       }
     }
   } catch {}
   const fromSettings = getEffectiveSections().find((s) => s.name === sectionName);
-  if (fromSettings) return fromSettings.items;
+  if (fromSettings) return [{ group: sectionName, items: fromSettings.items }];
   const sec = data.sections.find((s) => s.name === sectionName);
-  return sec ? sec.items : [];
+  return sec ? [{ group: sectionName, items: sec.items }] : [];
+}
+
+/** Compound entry key so items with the same display name in different
+ *  categories don't share status. */
+export function entryKey(group: string, itemName: string) {
+  return `${group}::${itemName}`;
+}
+
+/** Reads an entry using the compound key, falling back to the legacy
+ *  bare-name key for previously-saved data. */
+export function readEntry(
+  state: SectionState,
+  group: string,
+  itemName: string,
+  slot: Slot,
+): Entry | undefined {
+  return (
+    state.entries[entryKey(group, itemName)]?.[slot] ??
+    state.entries[itemName]?.[slot]
+  );
 }
 
 export const FLAG_STATUSES = new Set([
