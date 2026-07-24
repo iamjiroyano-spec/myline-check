@@ -145,7 +145,7 @@ function buildDefaultStruct(section: { items: Array<{ name: string; group?: stri
 function SectionPage() {
   const { name } = Route.useParams();
   const search = Route.useSearch() as { date?: string; shift?: Slot };
-  const section = SECTIONS.find((s) => s.name === name);
+  const section = SECTIONS.find((s) => s.name === name) ?? { name, items: [] as { name: string }[] };
   const shell = useShellState(name);
 
   // Sync shell to search params when reopening a past shift from history.
