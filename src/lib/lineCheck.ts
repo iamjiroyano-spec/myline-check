@@ -16,6 +16,23 @@ export const STATUSES = data.statuses;
 export const STAFF = data.staff;
 export const SECTIONS = data.sections.filter((s) => s.items.length > 0);
 
+/** Returns the effective items for a section, honoring user category edits
+ *  stored under `linecheck:section-items:<name>`. Falls back to the shipped
+ *  JSON structure when no override exists. */
+export function effectiveItems(sectionName: string): { name: string }[] {
+  try {
+    const raw = lsStore.getItem(`linecheck:section-items:${sectionName}`);
+    if (raw) {
+      const cats = JSON.parse(raw) as { items: { name: string }[] }[];
+      if (Array.isArray(cats)) {
+        return cats.flatMap((c) => (Array.isArray(c.items) ? c.items : []));
+      }
+    }
+  } catch {}
+  const sec = data.sections.find((s) => s.name === sectionName);
+  return sec ? sec.items : [];
+}
+
 export const FLAG_STATUSES = new Set([
   "ABOUT TO EXPIRE",
   "EXPIRED",
