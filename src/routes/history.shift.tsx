@@ -85,9 +85,6 @@ function ShiftDetail() {
       flagged: boolean;
     };
     const out: { section: string; items: Row[] }[] = [];
-    for (const sec of SECTIONS) {
-      const state = loadSection(sec.name, date);
-      const items: Row[] = [];
     for (const sec of getEffectiveSections()) {
       const state = loadSection(sec.name, date);
       const items: Row[] = [];
