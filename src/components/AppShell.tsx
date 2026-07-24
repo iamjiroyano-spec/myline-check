@@ -356,33 +356,47 @@ const THEME_PRESETS: { id: string; label: string; swatch: [string, string, strin
   { id: "emerald", label: "Emerald Prestige", swatch: ["#064e3b", "#0d7a5f", "#c9a84c"] },
 ];
 
+type ThemeMode = "system" | "light" | "dark";
+
+function applyThemeMode(mode: ThemeMode) {
+  const root = document.documentElement;
+  const prefersDark =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  const effectiveDark = mode === "dark" || (mode === "system" && prefersDark);
+  if (effectiveDark) root.classList.add("dark");
+  else root.classList.remove("dark");
+}
+
 function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
-  const [preset, setPreset] = useState("terracotta");
+  const [mode, setMode] = useState<ThemeMode>("system");
   const [open, setOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [customSwatch, setCustomSwatch] = useState<[string, string, string]>([
-    "#c4654a",
-    "#faf8f5",
-    "#87a878",
-  ]);
+
+  // Load saved mode & keep in sync with system changes when in "system" mode
   useEffect(() => {
-    const sync = () => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-      setPreset(document.documentElement.getAttribute("data-theme") || "terracotta");
-      import("@/lib/customTheme").then(({ loadCustomTheme }) => {
-        const c = loadCustomTheme();
-        setCustomSwatch([c.primary, c.background, c.accent]);
-      });
-    };
-    sync();
-    window.addEventListener("linecheck:update", sync);
-    window.addEventListener("linecheck:scope-change", sync);
-    return () => {
-      window.removeEventListener("linecheck:update", sync);
-      window.removeEventListener("linecheck:scope-change", sync);
-    };
+    (async () => {
+      try {
+        const { lsStore } = await import("@/lib/lsStore");
+        const saved =
+          (lsStore.getItem("linecheck:theme-mode") as ThemeMode | null) ||
+          (localStorage.getItem("linecheck:theme-mode") as ThemeMode | null) ||
+          "system";
+        setMode(saved);
+        applyThemeMode(saved);
+      } catch {
+        applyThemeMode("system");
+      }
+    })();
   }, []);
+
+  useEffect(() => {
+    if (mode !== "system" || typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => applyThemeMode("system");
+    mq.addEventListener?.("change", handler);
+    return () => mq.removeEventListener?.("change", handler);
+  }, [mode]);
+
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
@@ -392,107 +406,71 @@ function ThemeToggle() {
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [open]);
-  const toggleMode = async () => {
-    const next = !isDark;
-    setIsDark(next);
-    const root = document.documentElement;
-    if (next) root.classList.add("dark");
-    else root.classList.remove("dark");
+
+  const pick = async (next: ThemeMode) => {
+    setMode(next);
+    applyThemeMode(next);
+    setOpen(false);
     try {
       const { lsStore } = await import("@/lib/lsStore");
-      lsStore.setItem("linecheck:theme", next ? "dark" : "light");
-      localStorage.setItem("linecheck:theme", next ? "dark" : "light");
+      lsStore.setItem("linecheck:theme-mode", next);
+      localStorage.setItem("linecheck:theme-mode", next);
+      // Keep legacy key roughly in sync for anything still reading it
+      const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+      const effectiveDark = next === "dark" || (next === "system" && prefersDark);
+      lsStore.setItem("linecheck:theme", effectiveDark ? "dark" : "light");
+      localStorage.setItem("linecheck:theme", effectiveDark ? "dark" : "light");
     } catch {}
   };
-  const pickPreset = async (id: string) => {
-    setPreset(id);
-    const root = document.documentElement;
-    if (id === "terracotta") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", id);
-    if (id === "custom") {
-      const { loadCustomTheme, saveCustomTheme } = await import("@/lib/customTheme");
-      saveCustomTheme(loadCustomTheme());
-    }
-    // Always apply dark mode when picking from the dark themes menu
-    root.classList.add("dark");
-    setIsDark(true);
-    try {
-      const { lsStore } = await import("@/lib/lsStore");
-      lsStore.setItem("linecheck:theme-preset", id);
-      localStorage.setItem("linecheck:theme-preset", id);
-      lsStore.setItem("linecheck:theme", "dark");
-      localStorage.setItem("linecheck:theme", "dark");
-    } catch {}
-  };
+
+  const Icon = mode === "dark" ? Moon : mode === "light" ? Sun : Monitor;
+  const options: { id: ThemeMode; label: string; icon: typeof Monitor }[] = [
+    { id: "system", label: "Match system", icon: Monitor },
+    { id: "light", label: "Light", icon: Sun },
+    { id: "dark", label: "Dark", icon: Moon },
+  ];
+
   return (
     <div className="relative" data-theme-menu>
-      <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Choose theme"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          <Palette className="h-4 w-4" />
-        </button>
-        <button
-          onClick={toggleMode}
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
-      </div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Theme preference"
+        title="Theme preference"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      >
+        <Icon className="h-4 w-4" />
+      </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+        <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Dark Themes
+            Appearance
           </p>
           <ul className="pb-1">
-            {THEME_PRESETS.map((p) => (
-              <li key={p.id}>
-                <button
-                  onClick={() => pickPreset(p.id)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-accent hover:text-accent-foreground"
-                >
-                  <span className="flex h-4 w-8 overflow-hidden rounded-full ring-1 ring-border">
-                    {p.swatch.map((c, i) => (
-                      <span key={i} className="flex-1" style={{ background: c }} />
-                    ))}
-                  </span>
-                  <span className="flex-1 truncate">{p.label}</span>
-                  {preset === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
-                </button>
-              </li>
-            ))}
-            <li>
-              <button
-                onClick={() => pickPreset("custom")}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="flex h-4 w-8 overflow-hidden rounded-full ring-1 ring-border">
-                  {customSwatch.map((c, i) => (
-                    <span key={i} className="flex-1" style={{ background: c }} />
-                  ))}
-                </span>
-                <span className="flex-1 truncate">Custom</span>
-                {preset === "custom" && <Check className="h-3.5 w-3.5 text-primary" />}
-              </button>
-            </li>
+            {options.map((o) => {
+              const OIcon = o.icon;
+              return (
+                <li key={o.id}>
+                  <button
+                    onClick={() => pick(o.id)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <OIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="flex-1 truncate">{o.label}</span>
+                    {mode === o.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
-          <div className="border-t border-border">
-            <button
-              onClick={() => {
-                setOpen(false);
-                setEditorOpen(true);
-              }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-primary hover:bg-accent"
-            >
-              <Palette className="h-3.5 w-3.5" />
-              Customize colors…
-            </button>
-          </div>
+          <p className="border-t border-border px-3 py-2 text-[10px] leading-snug text-muted-foreground">
+            Automatically matches your device's light/dark setting. Pick Light or Dark to override.
+          </p>
         </div>
       )}
+    </div>
+  );
+}
+
       {editorOpen && (
         <CustomThemeEditor
           onClose={() => setEditorOpen(false)}
