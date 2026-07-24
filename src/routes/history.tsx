@@ -58,7 +58,8 @@ function HistoryPage() {
   const [tick, setTick] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [showClear, setShowClear] = useState(false);
-
+  const [expandedShifts, setExpandedShifts] = useState<Record<string, boolean>>({});
+  const [expandedStations, setExpandedStations] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fn = () => setTick((t) => t + 1);
@@ -81,11 +82,22 @@ function HistoryPage() {
       for (const { id: slot } of getShifts()) {
         if (shiftFilter !== "ALL" && slot !== shiftFilter) continue;
         const sh = shiftHistory(d, slot);
-        if (sh.stationsTouched === 0) continue;
-        shifts.push(sh);
-        totals.checks += sh.stationsTouched;
-        totals.complete += sh.stationsComplete;
-        totals.flagged += sh.flagged;
+        const filteredStations =
+          station === "ALL" ? sh.stations : sh.stations.filter((s) => s.name === station);
+        if (filteredStations.length === 0) continue;
+        const filteredSh: ShiftHistory = {
+          ...sh,
+          stations: filteredStations,
+          stationsTouched: filteredStations.length,
+          stationsComplete: filteredStations.filter((s) => s.complete).length,
+          totalItems: filteredStations.reduce((sum, s) => sum + s.totalItems, 0),
+          checkedItems: filteredStations.reduce((sum, s) => sum + s.checkedItems, 0),
+          flagged: filteredStations.reduce((sum, s) => sum + s.flagged, 0),
+        };
+        shifts.push(filteredSh);
+        totals.checks += filteredSh.stationsTouched;
+        totals.complete += filteredSh.stationsComplete;
+        totals.flagged += filteredSh.flagged;
       }
       if (shifts.length > 0) grouped.push({ date: d, shifts });
     }
